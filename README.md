@@ -6,6 +6,15 @@ Canonical desired state lives in Custom Resources. The REST API and UI in
 [virtfoundry/core](https://github.com/virtfoundry/core) are optional clients of
 that API (adoption / GitOps-friendly layer).
 
+## Controllers (v1alpha1)
+
+| Kind | Reconciler | Notes |
+|------|------------|-------|
+| Tenant | Namespace + status | Creates `virtfoundry-tenant-{slug}` namespace |
+| Instance | KubeVirt status sync | Writes `status.phase`, `status.ip`, `status.kubevirtName` from VM/VMI |
+
+Other kinds (VPC, Network, Disk, Instance create/delete) are defined as CRDs; controllers are planned per [core design spec](https://github.com/virtfoundry/core/blob/main/docs/superpowers/specs/2026-09-01-crd-operator-design.md).
+
 ## Develop
 
 ```bash
