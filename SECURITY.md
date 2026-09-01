@@ -4,27 +4,21 @@
 
 | Version | Supported |
 |---------|-----------|
-| main branch | yes |
+| `main` branch | yes |
 | tagged releases | yes |
 
 ## Reporting a vulnerability
 
 **Do not open public GitHub issues for security vulnerabilities.**
 
-Please report security issues via a private GitHub security advisory on this repository or by contacting maintainers listed on the [virtfoundry organization profile](https://github.com/virtfoundry).
+Report via a **private GitHub security advisory** on this repository or [virtfoundry/core](https://github.com/virtfoundry/core/security/advisories). Primary contact: **Matheus Thurler** ([@Matheus-Thurler](https://github.com/Matheus-Thurler)) — see [MAINTAINERS.md](MAINTAINERS.md).
 
-Include:
+Include affected component (CRDs, controllers, Helm chart), impact, reproduction steps, and suggested fix if any.
 
-- Description of the issue and impact
-- Steps to reproduce
-- Affected component (CRDs, controllers, Helm chart)
-- Suggested fix (if any)
+We aim to acknowledge within **7 days**.
 
-We aim to acknowledge reports within 7 days.
+## Secure deployment
 
-## Secure deployment notes
-
-- Platform state lives in `virtfoundry.io` CRs; credential hashes live only in Kubernetes Secrets referenced by `secretRef`
-- Never put password or API-key hashes in CR `spec`
-- Run the operator ServiceAccount with least-privilege RBAC (review chart / `config/rbac`)
-- Prefer image digests over floating tags in production overlays
+- Credential hashes belong only in Kubernetes Secrets (`secretRef`), never in CR `spec`
+- Operator ServiceAccount uses least-privilege RBAC — review `charts/virtfoundry-operator/templates/rbac.yaml`
+- Pin operator image by digest in production overlays
