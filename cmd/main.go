@@ -37,6 +37,7 @@ import (
 
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
 	"github.com/virtfoundry/operator/internal/controller"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -49,6 +50,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(virtfoundryv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kubevirtv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -183,6 +185,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "tenant")
+		os.Exit(1)
+	}
+	if err := (&controller.InstanceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "Failed to create controller", "controller", "instance")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
