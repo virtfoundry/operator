@@ -33,13 +33,13 @@ func kubeVirtVMName(instanceName, statusName string) string {
 func instancePhaseFromVM(vm *kubevirtv1.VirtualMachine) string {
 	switch vm.Status.PrintableStatus {
 	case kubevirtv1.VirtualMachineStatusRunning:
-		return "Running"
+		return instancePhaseRunning
 	case kubevirtv1.VirtualMachineStatusStopped:
-		return "Stopped"
+		return instancePhaseStopped
 	case kubevirtv1.VirtualMachineStatusStarting, kubevirtv1.VirtualMachineStatusProvisioning:
-		return "Starting"
+		return instancePhaseStarting
 	case kubevirtv1.VirtualMachineStatusStopping, kubevirtv1.VirtualMachineStatusTerminating:
-		return "Stopping"
+		return instancePhaseStopping
 	case kubevirtv1.VirtualMachineStatusCrashLoopBackOff,
 		kubevirtv1.VirtualMachineStatusUnknown,
 		kubevirtv1.VirtualMachineStatusUnschedulable,
@@ -47,39 +47,39 @@ func instancePhaseFromVM(vm *kubevirtv1.VirtualMachine) string {
 		kubevirtv1.VirtualMachineStatusImagePullBackOff,
 		kubevirtv1.VirtualMachineStatusPvcNotFound,
 		kubevirtv1.VirtualMachineStatusDataVolumeError:
-		return "Error"
+		return instancePhaseError
 	}
 	if vm.Spec.RunStrategy != nil {
 		switch *vm.Spec.RunStrategy {
 		case kubevirtv1.RunStrategyHalted, kubevirtv1.RunStrategyManual:
-			return "Stopped"
+			return instancePhaseStopped
 		case kubevirtv1.RunStrategyAlways, kubevirtv1.RunStrategyRerunOnFailure:
 			if vm.Status.Ready {
-				return "Running"
+				return instancePhaseRunning
 			}
-			return "Starting"
+			return instancePhaseStarting
 		}
 	}
-	return "Pending"
+	return instancePhasePending
 }
 
 func instancePhaseFromVMI(vmi *kubevirtv1.VirtualMachineInstance, vm *kubevirtv1.VirtualMachine) string {
 	for _, cond := range vmi.Status.Conditions {
 		if cond.Type == kubevirtv1.VirtualMachineInstanceConditionType(corev1.PodScheduled) && cond.Status == corev1.ConditionFalse {
 			if cond.Reason == "Unschedulable" {
-				return "Error"
+				return instancePhaseError
 			}
 		}
 	}
 	switch vmi.Status.Phase {
 	case kubevirtv1.Pending, kubevirtv1.Scheduling, kubevirtv1.Scheduled:
-		return "Starting"
+		return instancePhaseStarting
 	case kubevirtv1.Running:
-		return "Running"
+		return instancePhaseRunning
 	case kubevirtv1.Succeeded:
-		return "Stopped"
+		return instancePhaseStopped
 	case kubevirtv1.Failed:
-		return "Error"
+		return instancePhaseError
 	case kubevirtv1.Unknown:
 		return instancePhaseFromVM(vm)
 	}

@@ -37,15 +37,17 @@ var _ = Describe("Tenant Controller", func() {
 	)
 
 	Context("when creating a Tenant", func() {
+		const tenantSlug = "acme"
+
 		It("creates namespace virtfoundry-tenant-{slug} and sets Ready", func() {
 			ctx := context.Background()
-			key := types.NamespacedName{Name: "acme"}
+			key := types.NamespacedName{Name: tenantSlug}
 
 			tenant := &virtfoundryv1alpha1.Tenant{
-				ObjectMeta: metav1.ObjectMeta{Name: "acme"},
+				ObjectMeta: metav1.ObjectMeta{Name: tenantSlug},
 				Spec: virtfoundryv1alpha1.TenantSpec{
 					Name: "Acme Corp",
-					Slug: "acme",
+					Slug: tenantSlug,
 				},
 			}
 			Expect(k8sClient.Create(ctx, tenant)).To(Succeed())
@@ -64,7 +66,7 @@ var _ = Describe("Tenant Controller", func() {
 				ns := &corev1.Namespace{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "virtfoundry-tenant-acme"}, ns)).To(Succeed())
 				g.Expect(ns.Labels["app.kubernetes.io/part-of"]).To(Equal("virtfoundry"))
-				g.Expect(ns.Labels["virtfoundry.io/tenant"]).To(Equal("acme"))
+				g.Expect(ns.Labels["virtfoundry.io/tenant"]).To(Equal(tenantSlug))
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
