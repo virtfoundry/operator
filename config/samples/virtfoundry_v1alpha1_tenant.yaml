@@ -1,0 +1,9 @@
+apiVersion: virtfoundry.io/v1alpha1
+kind: Tenant
+metadata:
+  name: demo
+  labels:
+    app.kubernetes.io/part-of: virtfoundry
+spec:
+  name: Demo Tenant
+  slug: demo

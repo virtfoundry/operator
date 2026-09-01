@@ -3,9 +3,18 @@
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
 cliVersion: 4.15.0
-domain: virtfoundry.io
+domain: io
 layout:
 - go.kubebuilder.io/v4
 projectName: virtfoundry-operator
 repo: github.com/virtfoundry/operator
+resources:
+- api:
+    crdVersion: v1
+  controller: true
+  domain: io
+  group: virtfoundry
+  kind: Tenant
+  path: github.com/virtfoundry/operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
