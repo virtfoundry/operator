@@ -2,7 +2,21 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
+- bases/virtfoundry.io_apikeys.yaml
+- bases/virtfoundry.io_disks.yaml
+- bases/virtfoundry.io_disksnapshots.yaml
+- bases/virtfoundry.io_instances.yaml
+- bases/virtfoundry.io_instancesnapshots.yaml
+- bases/virtfoundry.io_ipaddresses.yaml
+- bases/virtfoundry.io_networks.yaml
+- bases/virtfoundry.io_offerings.yaml
+- bases/virtfoundry.io_roles.yaml
+- bases/virtfoundry.io_securitygroups.yaml
+- bases/virtfoundry.io_sshkeys.yaml
+- bases/virtfoundry.io_templates.yaml
 - bases/virtfoundry.io_tenants.yaml
+- bases/virtfoundry.io_users.yaml
+- bases/virtfoundry.io_vpcs.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

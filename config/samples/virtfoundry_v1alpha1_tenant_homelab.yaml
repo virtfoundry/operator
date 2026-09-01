@@ -1,0 +1,9 @@
+apiVersion: virtfoundry.io/v1alpha1
+kind: Tenant
+metadata:
+  name: homelab-smoke
+  labels:
+    app.kubernetes.io/part-of: virtfoundry
+spec:
+  name: Homelab Smoke
+  slug: smoke
