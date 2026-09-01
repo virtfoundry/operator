@@ -29,6 +29,8 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "virtfoundry.io", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
+	//
+	//nolint:staticcheck // kubebuilder scaffold; upstream migration pending.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.

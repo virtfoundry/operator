@@ -9,7 +9,7 @@ import (
 func TestInstancePhaseFromVMRunning(t *testing.T) {
 	vm := &kubevirtv1.VirtualMachine{}
 	vm.Status.PrintableStatus = kubevirtv1.VirtualMachineStatusRunning
-	if got := instancePhaseFromVM(vm); got != "Running" {
+	if got := instancePhaseFromVM(vm); got != instancePhaseRunning {
 		t.Fatalf("got %q", got)
 	}
 }
