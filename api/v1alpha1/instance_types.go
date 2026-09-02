@@ -54,6 +54,11 @@ type InstanceSpec struct {
 	// +optional
 	DedicatedCPU bool `json:"dedicatedCPU,omitempty"`
 
+	// PowerState is Running or Halted (maps to KubeVirt RunStrategy).
+	// +kubebuilder:validation:Enum=Running;Halted
+	// +optional
+	PowerState string `json:"powerState,omitempty"`
+
 	// Import optional CloudStack/other import identity.
 	// +optional
 	Import *ImportMeta `json:"import,omitempty"`

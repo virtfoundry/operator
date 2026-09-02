@@ -1,0 +1,12 @@
+apiVersion: virtfoundry.io/v1alpha1
+kind: Instance
+metadata:
+  name: cr-smoke-demo
+  namespace: virtfoundry-tenant-default
+spec:
+  displayName: cr-smoke-demo
+  offeringRef:
+    name: small
+  templateRef:
+    name: cirros
+  powerState: Running

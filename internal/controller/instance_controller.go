@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -36,7 +37,7 @@ import (
 
 const instanceRequeue = 30 * time.Second
 
-// InstanceReconciler observes KubeVirt VMs and writes Instance status.
+// InstanceReconciler ensures KubeVirt VMs from Instance spec and syncs status.
 type InstanceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -44,7 +45,10 @@ type InstanceReconciler struct {
 
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=instances,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=instances/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines;virtualmachineinstances,verbs=get;list;watch
+// +kubebuilder:rbac:groups=virtfoundry.io,resources=instances/finalizers,verbs=update
+// +kubebuilder:rbac:groups=virtfoundry.io,resources=offerings,verbs=get;list;watch
+// +kubebuilder:rbac:groups=virtfoundry.io,resources=templates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines;virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 
 func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logf.FromContext(ctx)
@@ -55,12 +59,45 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	kvName := kubeVirtVMName(inst.Name, inst.Status.KubeVirtName)
+
+	if !inst.DeletionTimestamp.IsZero() {
+		if controllerutil.ContainsFinalizer(inst, instanceFinalizer) {
+			if err := r.deleteVirtualMachine(ctx, inst.Namespace, kvName); err != nil {
+				return ctrl.Result{}, err
+			}
+			controllerutil.RemoveFinalizer(inst, instanceFinalizer)
+			if err := r.Update(ctx, inst); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(inst, instanceFinalizer) {
+		controllerutil.AddFinalizer(inst, instanceFinalizer)
+		if err := r.Update(ctx, inst); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	if err := r.ensureVirtualMachine(ctx, inst, kvName); err != nil {
+		inst.Status.KubeVirtName = kvName
+		inst.Status.Phase = virtfoundryv1alpha1.PhaseFailed
+		inst.Status.ErrorMessage = err.Error()
+		if statusErr := r.Status().Update(ctx, inst); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		logger.Error(err, "ensure VirtualMachine")
+		return ctrl.Result{RequeueAfter: instanceRequeue}, nil
+	}
+
 	vm := &kubevirtv1.VirtualMachine{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: kvName}, vm)
 	if apierrors.IsNotFound(err) {
 		inst.Status.KubeVirtName = kvName
 		if inst.Status.Phase == "" {
-			inst.Status.Phase = "Pending"
+			inst.Status.Phase = virtfoundryv1alpha1.PhasePending
 		}
 		if err := r.Status().Update(ctx, inst); err != nil {
 			return ctrl.Result{}, err
@@ -90,13 +127,14 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	logger.V(1).Info("synced instance status", "phase", phase, "ip", ip)
+	logger.V(1).Info("synced instance", "phase", phase, "ip", ip)
 	return ctrl.Result{RequeueAfter: instanceRequeue}, nil
 }
 
 func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&virtfoundryv1alpha1.Instance{}).
+		Owns(&kubevirtv1.VirtualMachine{}).
 		Watches(
 			&kubevirtv1.VirtualMachine{},
 			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
