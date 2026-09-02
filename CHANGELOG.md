@@ -4,6 +4,14 @@ All notable changes to the **VirtFoundry operator** are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning aligned with [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [0.7.0] - 2026-09-02
+
+### Changed
+
+- Chart and default image tag aligned with VirtFoundry `0.7.0` (no functional operator changes)
+
+[0.7.0]: https://github.com/virtfoundry/operator/releases/tag/v0.7.0
+
 ## [0.6.0] - 2026-09-01
 
 ### Added
