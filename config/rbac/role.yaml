@@ -17,9 +17,10 @@ rules:
   - update
   - watch
 - apiGroups:
-  - virtfoundry.io
+  - kubevirt.io
   resources:
-  - tenants
+  - virtualmachineinstances
+  - virtualmachines
   verbs:
   - create
   - delete
@@ -31,14 +32,47 @@ rules:
 - apiGroups:
   - virtfoundry.io
   resources:
+  - instances
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - virtfoundry.io
+  resources:
+  - instances/finalizers
   - tenants/finalizers
   verbs:
   - update
 - apiGroups:
   - virtfoundry.io
   resources:
+  - instances/status
   - tenants/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - virtfoundry.io
+  resources:
+  - offerings
+  - templates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - virtfoundry.io
+  resources:
+  - tenants
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
