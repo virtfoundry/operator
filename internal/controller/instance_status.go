@@ -98,7 +98,7 @@ func preferGuestIP(ifaces []kubevirtv1.VirtualMachineInstanceNetworkInterface) s
 		}
 	}
 	for _, iface := range ifaces {
-		if iface.IP != "" && iface.Name != "default" {
+		if iface.IP != "" && iface.Name != podNetworkName {
 			return iface.IP
 		}
 	}

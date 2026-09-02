@@ -162,13 +162,13 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 	}
 
 	ifaces := []kubevirtv1.Interface{{
-		Name: "default",
+		Name: podNetworkName,
 		InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 			Masquerade: &kubevirtv1.InterfaceMasquerade{},
 		},
 	}}
 	networks := []kubevirtv1.Network{{
-		Name: "default",
+		Name: podNetworkName,
 		NetworkSource: kubevirtv1.NetworkSource{
 			Pod: &kubevirtv1.PodNetwork{},
 		},
@@ -190,8 +190,8 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 			Namespace: inst.Namespace,
 			Labels: map[string]string{
 				"app.kubernetes.io/managed-by": instanceManagedBy,
-				"app.kubernetes.io/part-of":      "virtfoundry",
-				"virtfoundry.io/instance":        inst.Name,
+				"app.kubernetes.io/part-of":    "virtfoundry",
+				"virtfoundry.io/instance":      inst.Name,
 			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{

@@ -9,15 +9,17 @@ import (
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
 )
 
+const testVMName = "demo"
+
 func TestBuildVirtualMachine_Running(t *testing.T) {
 	inst := &virtfoundryv1alpha1.Instance{
-		ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "virtfoundry-tenant-default"},
+		ObjectMeta: metav1.ObjectMeta{Name: testVMName, Namespace: "virtfoundry-tenant-default"},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
-			DisplayName: "demo",
+			DisplayName: testVMName,
 			PowerState:  powerStateRunning,
 		},
 	}
-	vm := buildVirtualMachine(inst, "demo", vmBuildInput{
+	vm := buildVirtualMachine(inst, testVMName, vmBuildInput{
 		cpu:        1,
 		memoryMi:   1024,
 		image:      "quay.io/containerdisks/ubuntu:22.04",
@@ -25,7 +27,7 @@ func TestBuildVirtualMachine_Running(t *testing.T) {
 		powerState: powerStateRunning,
 	})
 
-	if vm.Name != "demo" {
+	if vm.Name != testVMName {
 		t.Fatalf("name: got %q", vm.Name)
 	}
 	if vm.Spec.RunStrategy == nil || *vm.Spec.RunStrategy != kubevirtv1.RunStrategyAlways {
@@ -38,9 +40,9 @@ func TestBuildVirtualMachine_Running(t *testing.T) {
 
 func TestBuildVirtualMachine_Halted(t *testing.T) {
 	inst := &virtfoundryv1alpha1.Instance{
-		ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "ns"},
+		ObjectMeta: metav1.ObjectMeta{Name: testVMName, Namespace: "ns"},
 	}
-	vm := buildVirtualMachine(inst, "demo", vmBuildInput{powerState: powerStateHalted})
+	vm := buildVirtualMachine(inst, testVMName, vmBuildInput{powerState: powerStateHalted})
 	if vm.Spec.RunStrategy == nil || *vm.Spec.RunStrategy != kubevirtv1.RunStrategyHalted {
 		t.Fatalf("expected RunStrategyHalted, got %#v", vm.Spec.RunStrategy)
 	}

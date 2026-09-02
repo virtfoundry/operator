@@ -7,4 +7,6 @@ const (
 	instancePhaseStopping = "Stopping"
 	instancePhaseError    = "Error"
 	instancePhasePending  = "Pending"
+
+	podNetworkName = "default"
 )

@@ -16,7 +16,7 @@ func TestInstancePhaseFromVMRunning(t *testing.T) {
 
 func TestPreferGuestIPPublicNic(t *testing.T) {
 	ip := preferGuestIP([]kubevirtv1.VirtualMachineInstanceNetworkInterface{
-		{Name: "default", IP: "10.233.1.5"},
+		{Name: podNetworkName, IP: "10.233.1.5"},
 		{Name: "public", IP: "10.0.50.12"},
 	})
 	if ip != "10.0.50.12" {
