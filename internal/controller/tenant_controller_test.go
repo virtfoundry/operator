@@ -186,6 +186,92 @@ var _ = Describe("Tenant Controller", func() {
 		})
 	})
 
+	Context("when two Tenants claim the same slug", func() {
+		const slug = "dupslug"
+
+		It("rejects the second Tenant and never lets it adopt the namespace", func() {
+			ctx := context.Background()
+			firstKey := types.NamespacedName{Name: "dupslug-owner"}
+			secondKey := types.NamespacedName{Name: "dupslug-copy"}
+
+			first := &virtfoundryv1alpha1.Tenant{
+				ObjectMeta: metav1.ObjectMeta{Name: firstKey.Name},
+				Spec: virtfoundryv1alpha1.TenantSpec{
+					Name: "Owner",
+					Slug: slug,
+				},
+			}
+			Expect(k8sClient.Create(ctx, first)).To(Succeed())
+
+			r := &TenantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: firstKey})
+			Expect(err).NotTo(HaveOccurred())
+			_, err = r.Reconcile(ctx, reconcile.Request{NamespacedName: firstKey})
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				got := &virtfoundryv1alpha1.Tenant{}
+				g.Expect(k8sClient.Get(ctx, firstKey, got)).To(Succeed())
+				g.Expect(got.Status.Phase).To(Equal("Ready"))
+			}, timeout, interval).Should(Succeed())
+
+			second := &virtfoundryv1alpha1.Tenant{
+				ObjectMeta: metav1.ObjectMeta{Name: secondKey.Name},
+				Spec: virtfoundryv1alpha1.TenantSpec{
+					Name: "Copy",
+					Slug: slug,
+				},
+			}
+			Expect(k8sClient.Create(ctx, second)).To(Succeed())
+
+			_, err = r.Reconcile(ctx, reconcile.Request{NamespacedName: secondKey})
+			Expect(err).NotTo(HaveOccurred())
+			_, err = r.Reconcile(ctx, reconcile.Request{NamespacedName: secondKey})
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, errSlugConflict)).To(BeTrue())
+			Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+
+			By("leaving the first Tenant's namespace owned only by the first Tenant")
+			ns := &corev1.Namespace{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: tenantNamespaceName(slug)}, ns)).To(Succeed())
+			owner := metav1.GetControllerOf(ns)
+			Expect(owner).NotTo(BeNil())
+			Expect(owner.Name).To(Equal(firstKey.Name))
+			Expect(ns.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			Eventually(func(g Gomega) {
+				got := &virtfoundryv1alpha1.Tenant{}
+				g.Expect(k8sClient.Get(ctx, secondKey, got)).To(Succeed())
+				g.Expect(got.Status.Phase).To(Equal("Failed"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("does not delete the namespace when the colliding Tenant is removed", func() {
+			ctx := context.Background()
+			secondKey := types.NamespacedName{Name: "dupslug-copy"}
+
+			second := &virtfoundryv1alpha1.Tenant{}
+			Expect(k8sClient.Get(ctx, secondKey, second)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, second)).To(Succeed())
+
+			r := &TenantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: secondKey})
+			Expect(err).NotTo(HaveOccurred())
+
+			ns := &corev1.Namespace{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: tenantNamespaceName(slug)}, ns)).To(Succeed())
+			Expect(ns.DeletionTimestamp.IsZero()).To(BeTrue())
+			owner := metav1.GetControllerOf(ns)
+			Expect(owner).NotTo(BeNil())
+			Expect(owner.Name).To(Equal("dupslug-owner"))
+
+			Eventually(func() bool {
+				got := &virtfoundryv1alpha1.Tenant{}
+				return apierrors.IsNotFound(k8sClient.Get(ctx, secondKey, got))
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
 	Context("when the Tenant namespace was never created", func() {
 		const tenantSlug = "ghost"
 

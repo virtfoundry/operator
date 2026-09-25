@@ -35,6 +35,8 @@ type TenantSpec struct {
 	Name string `json:"name"`
 
 	// DNS-1123 slug; drives Namespace virtfoundry-tenant-{slug}.
+	// Must be unique across Tenants — the controller indexes and rejects
+	// collisions (admission webhook uniqueness is a follow-up; see issue #13).
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	// +kubebuilder:validation:MaxLength=63
 	Slug string `json:"slug"`

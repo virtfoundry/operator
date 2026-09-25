@@ -17,11 +17,18 @@ Other kinds (VPC, Network, Disk, Instance create/delete) are defined as CRDs; co
 
 ### Tenant namespace safety
 
-The Tenant reconciler only writes to `virtfoundry-tenant-{slug}` namespaces that
-carry `virtfoundry.io/tenant={slug}` and either no controller ownerRef (adopted
-once) or an ownerRef pointing at that Tenant. Anything else — system namespaces,
-unlabelled namespaces, another Tenant's namespace — is refused, and the Tenant
-reports `status.phase: Failed` instead of adopting or deleting it.
+`spec.slug` must be unique across Tenants. The controller indexes `.spec.slug`
+and marks colliding Tenants `Failed` (terminal) so they never share or wipe a
+namespace. Admission-time uniqueness is deferred to the validating webhook work
+in issue #13.
+
+The reconciler only writes to `virtfoundry-tenant-{slug}` namespaces that carry
+`virtfoundry.io/tenant={slug}` and either no controller ownerRef (adopted once)
+or an ownerRef pointing at that Tenant. Deletes require label **and** a matching
+controller ownerRef. Anything else — system namespaces, unlabelled namespaces,
+another Tenant's namespace, label-only legacy namespaces — is refused, and the
+Tenant reports `status.phase: Failed` (or drops its finalizer on delete) instead
+of adopting or wiping it.
 
 The chart adds a matching cluster-side guard: `namespaceGuard.enabled` (default
 `true`) installs a ValidatingAdmissionPolicy that denies the operator

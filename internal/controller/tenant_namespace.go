@@ -57,6 +57,13 @@ var protectedNamespaces = map[string]struct{}{
 // namespace because it cannot prove the namespace belongs to the Tenant.
 var errNamespaceNotOwned = errors.New("namespace is not owned by this Tenant")
 
+// errSlugConflict is returned when another live Tenant already claims this slug.
+// Two Tenants sharing a slug would share (and on delete, wipe) one namespace.
+var errSlugConflict = errors.New("tenant slug is already in use")
+
+// tenantSlugIndexKey is the field indexer key for Tenant.spec.slug.
+const tenantSlugIndexKey = "spec.slug"
+
 func tenantNamespaceName(slug string) string {
 	return tenantNamespacePrefix + slug
 }
@@ -107,10 +114,30 @@ func assertTenantNamespaceOwned(ns *corev1.Namespace, tenant *virtfoundryv1alpha
 		return fmt.Errorf("%w: %q carries label %s=%q, want %q",
 			errNamespaceNotOwned, ns.Name, labelTenant, ns.Labels[labelTenant], tenant.Spec.Slug)
 	}
-	// Two Tenants may declare the same slug. Only the Tenant that owns the
-	// namespace may manage it; namespaces created before ownerRefs were stamped
-	// have no controller ref and are adopted by the first matching Tenant.
+	// Two Tenants must not share a slug (assertSlugUnique), but a race or a
+	// legacy object can still leave a foreign ownerRef. Only the controlling
+	// Tenant may manage the namespace; namespaces created before ownerRefs were
+	// stamped have no controller ref and may be adopted once by the slug owner.
 	if owner := metav1.GetControllerOf(ns); owner != nil && owner.UID != tenant.UID {
+		return fmt.Errorf("%w: %q is controlled by %s %q",
+			errNamespaceNotOwned, ns.Name, owner.Kind, owner.Name)
+	}
+	return nil
+}
+
+// assertTenantNamespaceDeletable is stricter than assertTenantNamespaceOwned:
+// delete requires both the tenant label and a matching controller ownerRef.
+// Label-only legacy namespaces are left alone rather than wiped.
+func assertTenantNamespaceDeletable(ns *corev1.Namespace, tenant *virtfoundryv1alpha1.Tenant) error {
+	if err := assertTenantNamespaceOwned(ns, tenant); err != nil {
+		return err
+	}
+	owner := metav1.GetControllerOf(ns)
+	if owner == nil {
+		return fmt.Errorf("%w: %q has no controller ownerRef; refusing delete",
+			errNamespaceNotOwned, ns.Name)
+	}
+	if owner.UID != tenant.UID {
 		return fmt.Errorf("%w: %q is controlled by %s %q",
 			errNamespaceNotOwned, ns.Name, owner.Kind, owner.Name)
 	}

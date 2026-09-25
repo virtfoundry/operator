@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"time"
 
@@ -95,15 +96,35 @@ func (r *TenantReconciler) reconcileNamespace(
 		return r.markFailed(ctx, tenant, err)
 	}
 
+	if err := r.assertSlugUnique(ctx, tenant); err != nil {
+		logger.Error(err, "Refused Tenant with colliding slug", "slug", tenant.Spec.Slug, "tenant", tenant.Name)
+		return r.markFailed(ctx, tenant, err)
+	}
+
 	ns := &corev1.Namespace{}
 	err := r.Get(ctx, client.ObjectKey{Name: nsName}, ns)
 	switch {
 	case apierrors.IsNotFound(err):
 		if err := r.createNamespace(ctx, tenant, nsName); err != nil {
-			logger.Error(err, "Failed to create Namespace", "namespace", nsName)
-			return r.markFailed(ctx, tenant, err)
+			if !apierrors.IsAlreadyExists(err) {
+				logger.Error(err, "Failed to create Namespace", "namespace", nsName)
+				return r.markFailed(ctx, tenant, err)
+			}
+			// Concurrent create: re-fetch and require ownership before adopting.
+			if getErr := r.Get(ctx, client.ObjectKey{Name: nsName}, ns); getErr != nil {
+				return ctrl.Result{}, getErr
+			}
+			if ownErr := assertTenantNamespaceOwned(ns, tenant); ownErr != nil {
+				logger.Error(ownErr, "Refused to adopt Namespace for Tenant", "namespace", nsName, "tenant", tenant.Name)
+				return r.markFailed(ctx, tenant, ownErr)
+			}
+			if err := r.stampNamespace(ctx, tenant, ns); err != nil {
+				logger.Error(err, "Failed to update Namespace", "namespace", nsName)
+				return ctrl.Result{}, err
+			}
+		} else {
+			logger.Info("Created Namespace for Tenant", "namespace", nsName, "tenant", tenant.Name)
 		}
-		logger.Info("Created Namespace for Tenant", "namespace", nsName, "tenant", tenant.Name)
 	case err != nil:
 		return ctrl.Result{}, err
 	default:
@@ -140,10 +161,7 @@ func (r *TenantReconciler) createNamespace(
 	if err := controllerutil.SetControllerReference(tenant, ns, r.Scheme); err != nil {
 		return err
 	}
-	if err := r.Create(ctx, ns); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
+	return r.Create(ctx, ns)
 }
 
 // stampNamespace keeps labels and the ownerRef current on an owned namespace.
@@ -161,6 +179,39 @@ func (r *TenantReconciler) stampNamespace(
 		return err
 	}
 	return r.Patch(ctx, ns, patch)
+}
+
+// assertSlugUnique rejects a Tenant whose slug is already claimed by another
+// live Tenant. Uses the field index when registered; falls back to a full list
+// so unit tests without a manager still work.
+func (r *TenantReconciler) assertSlugUnique(ctx context.Context, tenant *virtfoundryv1alpha1.Tenant) error {
+	if tenant.Spec.Slug == "" {
+		return fmt.Errorf("%w: empty slug", errSlugConflict)
+	}
+
+	list := &virtfoundryv1alpha1.TenantList{}
+	err := r.List(ctx, list, client.MatchingFields{tenantSlugIndexKey: tenant.Spec.Slug})
+	if err != nil {
+		if listErr := r.List(ctx, list); listErr != nil {
+			return listErr
+		}
+	}
+
+	for i := range list.Items {
+		other := &list.Items[i]
+		if other.Name == tenant.Name {
+			continue
+		}
+		if other.Spec.Slug != tenant.Spec.Slug {
+			continue
+		}
+		if !other.DeletionTimestamp.IsZero() {
+			continue
+		}
+		return fmt.Errorf("%w: slug %q is already used by Tenant %q",
+			errSlugConflict, tenant.Spec.Slug, other.Name)
+	}
+	return nil
 }
 
 // reconcileDelete removes the tenant namespace, but only the one this operator
@@ -183,7 +234,7 @@ func (r *TenantReconciler) reconcileDelete(
 	case err != nil:
 		return ctrl.Result{}, err
 	default:
-		if guardErr := assertTenantNamespaceOwned(ns, tenant); guardErr != nil {
+		if guardErr := assertTenantNamespaceDeletable(ns, tenant); guardErr != nil {
 			// Never delete a namespace we cannot prove we own. Drop the finalizer
 			// so the Tenant is not wedged on a namespace that is not ours.
 			logger.Error(guardErr, "Refused to delete Namespace for Tenant",
@@ -209,9 +260,9 @@ func (r *TenantReconciler) reconcileDelete(
 	return ctrl.Result{}, nil
 }
 
-// markFailed records the failure on the Tenant status. An ownership refusal is
-// returned as a terminal error: retrying cannot change the outcome, an operator
-// has to rename the slug or clean up the namespace.
+// markFailed records the failure on the Tenant status. An ownership or slug
+// refusal is returned as a terminal error: retrying cannot change the outcome;
+// an operator has to rename the slug or clean up the namespace.
 func (r *TenantReconciler) markFailed(
 	ctx context.Context,
 	tenant *virtfoundryv1alpha1.Tenant,
@@ -221,7 +272,7 @@ func (r *TenantReconciler) markFailed(
 	if err := r.Status().Update(ctx, tenant); err != nil {
 		return ctrl.Result{}, err
 	}
-	if errors.Is(cause, errNamespaceNotOwned) {
+	if errors.Is(cause, errNamespaceNotOwned) || errors.Is(cause, errSlugConflict) {
 		return ctrl.Result{}, reconcile.TerminalError(cause)
 	}
 	return ctrl.Result{}, cause
@@ -229,6 +280,21 @@ func (r *TenantReconciler) markFailed(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&virtfoundryv1alpha1.Tenant{},
+		tenantSlugIndexKey,
+		func(obj client.Object) []string {
+			tenant, ok := obj.(*virtfoundryv1alpha1.Tenant)
+			if !ok || tenant.Spec.Slug == "" {
+				return nil
+			}
+			return []string{tenant.Spec.Slug}
+		},
+	); err != nil {
+		return fmt.Errorf("index Tenant by %s: %w", tenantSlugIndexKey, err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&virtfoundryv1alpha1.Tenant{}).
 		Named("tenant").
