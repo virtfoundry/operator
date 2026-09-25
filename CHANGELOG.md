@@ -11,13 +11,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 - Tenant reconcile ensures PSA (`privileged`), default-deny NetworkPolicy
   (`virtfoundry-default-deny`), ResourceQuota, and LimitRange in tenant namespaces
 - Instance Multus/VPC NIC wiring from `spec.nics` → Network status NAD
+- ContainerDisk image allowlist on Instance reconcile (`quay.io/containerdisks/`,
+  `quay.io/kubevirt/` by default; override via
+  `VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES` / chart `imageAllowlist.prefixes`)
 
 ### Changed
 
 - **Breaking:** Instance no longer attaches KubeVirt pod network (masquerade) by
   default. Set `spec.nics` or annotate `virtfoundry.io/allow-pod-network=true`
 - Instance reconcile refuses namespaces that are not labelled VirtFoundry tenants
-
+- Instance reconcile refuses Template images outside the ContainerDisk allowlist
+  (HTTP(S) URLs must use the ISO/CDI path)
 ## [0.7.1] - 2026-09-04
 
 ### Changed

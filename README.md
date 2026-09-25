@@ -50,7 +50,9 @@ parsing never uses `resource.MustParse` on guest CPU/memory.
 **Not in this slice (tracked in [#26](https://github.com/virtfoundry/operator/issues/26)):**
 
 - Validating webhooks + cert-manager + Helm `:9443` (including admission-time slug uniqueness)
-- Template image allowlist / privileged KubeVirt feature rejection
+- Template CR admission (issue #26) — ContainerDisk image allowlist is already
+  enforced in the Instance reconciler (issue #22)
+- Privileged KubeVirt feature rejection / `dedicatedCPU` Offering gates
 
 The manager no longer starts an empty webhook TLS server.
 
@@ -69,7 +71,10 @@ Instance reconcile only runs in namespaces labelled `virtfoundry.io/tenant` unde
 the `virtfoundry-tenant-*` prefix. Guest VMs do **not** get the KubeVirt pod
 network (masquerade) by default — attach Multus/VPC networks via `spec.nics`, or
 opt in with annotation `virtfoundry.io/allow-pod-network=true` (breaking change
-vs ≤0.7). Image allowlists and `dedicatedCPU` Offering gates are follow-ups.
+vs ≤0.7). ContainerDisk images must match the allowlist (`quay.io/containerdisks/`,
+`quay.io/kubevirt/` by default; chart `imageAllowlist.prefixes` /
+`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` Offering gates
+remain a follow-up.
 
 ## Develop
 

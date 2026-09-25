@@ -110,6 +110,12 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		in.cloudInit = tmpl.Spec.CloudInitUserData
 	}
 
+	// Defense in depth for #22: never copy an unlisted Template.spec.image into
+	// ContainerDisk (webhook / VAP Template allowlist remains a follow-up in #26).
+	if err := validateContainerDiskImage(in.image, r.AllowedContainerImagePrefixes); err != nil {
+		return in, err
+	}
+
 	ifaces, networks, err := r.resolveVMNetworks(ctx, inst)
 	if err != nil {
 		return in, err
