@@ -19,6 +19,13 @@ leaderElection: true
 namespaceGuard:
   enabled: true
 
+# Cluster-side CR admission (issue #13): Instance only in virtfoundry-tenant-*,
+# Offering CPU/memory bounds. Complements CRD OpenAPI. Tenant slug uniqueness
+# is enforced in the controller (#15/#20); admission-time slug checks wait on
+# webhooks (#26). Residual: webhook + cert-manager + :9443.
+crAdmission:
+  enabled: true
+
 resources:
   requests:
     cpu: 50m

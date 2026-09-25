@@ -19,8 +19,8 @@ Other kinds (VPC, Network, Disk, Instance create/delete) are defined as CRDs; co
 
 `spec.slug` must be unique across Tenants. The controller indexes `.spec.slug`
 and marks colliding Tenants `Failed` (terminal) so they never share or wipe a
-namespace. Admission-time uniqueness is deferred to the validating webhook work
-in issue #13.
+namespace. Admission-time uniqueness is deferred to validating webhooks
+(follow-up #26).
 
 The reconciler only writes to `virtfoundry-tenant-{slug}` namespaces that carry
 `virtfoundry.io/tenant={slug}` and either no controller ownerRef (adopted once)
@@ -34,6 +34,25 @@ The chart adds a matching cluster-side guard: `namespaceGuard.enabled` (default
 `true`) installs a ValidatingAdmissionPolicy that denies the operator
 ServiceAccount any Namespace `DELETE` outside that set. It renders only on
 clusters serving `admissionregistration.k8s.io/v1` policies (Kubernetes >= 1.30).
+
+### CR admission (Instance / Offering)
+
+`crAdmission.enabled` (default `true`) installs a ValidatingAdmissionPolicy that:
+
+- Rejects `Instance` CREATE/UPDATE outside `virtfoundry-tenant-*`
+- Rejects `Offering` with CPU outside `1..256` or `memoryMi` outside `64..1048576`
+
+Offering bounds are also in the CRD OpenAPI schema. The Instance reconciler
+refuses out-of-namespace Instances and out-of-bounds Offerings with
+`status.phase: Failed` (defense in depth when VAP is unavailable). Quantity
+parsing never uses `resource.MustParse` on guest CPU/memory.
+
+**Not in this slice (tracked in [#26](https://github.com/virtfoundry/operator/issues/26)):**
+
+- Validating webhooks + cert-manager + Helm `:9443` (including admission-time slug uniqueness)
+- Template image allowlist / privileged KubeVirt feature rejection
+
+The manager no longer starts an empty webhook TLS server.
 
 ## Develop
 

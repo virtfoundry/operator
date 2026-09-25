@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fails if the rendered operator ClusterRole drifts from Tenant+Instance needs
 # (kubebuilder config/rbac/role.yaml), regains cluster-wide Secret access, or if
-# the namespace deletion guard stops rendering on capable clusters.
+# admission guards stop rendering on capable clusters.
 #
 # Keep in sync with virtfoundry/helm-charts scripts/ci/verify-operator-chart-rbac.sh.
 set -euo pipefail
@@ -83,3 +83,20 @@ if ! grep -q "kind: ValidatingAdmissionPolicy$" <<<"$guard"; then
   exit 1
 fi
 echo "OK: namespace deletion guard renders on clusters serving ValidatingAdmissionPolicy"
+
+admission="$(helm template virtfoundry-operator "$CHART_DIR" \
+  -s templates/cr-admission.yaml --api-versions "$VAP_API")"
+
+if ! grep -q "kind: ValidatingAdmissionPolicy$" <<<"$admission"; then
+  echo "FAIL: CR admission policy is not rendered on clusters serving $VAP_API" >&2
+  exit 1
+fi
+if ! grep -q "virtfoundry-tenant-" <<<"$admission"; then
+  echo "FAIL: CR admission policy missing Instance tenant-namespace rule" >&2
+  exit 1
+fi
+if ! grep -q "object.spec.cpu" <<<"$admission"; then
+  echo "FAIL: CR admission policy missing Offering CPU/memory bounds" >&2
+  exit 1
+fi
+echo "OK: CR admission policy renders Instance namespace + Offering bounds rules"

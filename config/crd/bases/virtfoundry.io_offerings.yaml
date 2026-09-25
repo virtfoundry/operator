@@ -42,7 +42,11 @@ spec:
             description: OfferingSpec is the desired state of an Offering.
             properties:
               cpu:
-                description: CPU cores allocated to instances using this offering.
+                description: |-
+                  CPU cores allocated to instances using this offering.
+                  Bounds match ValidatingAdmissionPolicy + controller guards (issue #13).
+                maximum: 256
+                minimum: 1
                 type: integer
               dedicatedCPU:
                 description: DedicatedCPU pins vCPU threads to host cores.
@@ -59,8 +63,12 @@ spec:
                     type: string
                 type: object
               memoryMi:
-                description: MemoryMi is memory in mebibytes.
+                description: |-
+                  MemoryMi is memory in mebibytes.
+                  Bounds match ValidatingAdmissionPolicy + controller guards (issue #13).
                 format: int64
+                maximum: 1048576
+                minimum: 64
                 type: integer
               storageTags:
                 description: StorageTags comma-separated storage tag filter.
