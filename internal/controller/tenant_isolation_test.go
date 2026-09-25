@@ -47,8 +47,8 @@ func TestDefaultDenyNetworkPolicySpec_HasDNSAndPolicyTypes(t *testing.T) {
 	if len(dns.Ports) != 2 {
 		t.Fatalf("expected UDP+TCP DNS ports, got %#v", dns.Ports)
 	}
-	if dns.To[0].NamespaceSelector == nil || dns.To[0].NamespaceSelector.MatchLabels[labelK8sName] != "kube-system" {
-		t.Fatalf("DNS rule should target kube-system, got %#v", dns.To)
+	if dns.To[0].NamespaceSelector == nil || dns.To[0].NamespaceSelector.MatchLabels[labelK8sName] != namespaceKubeSystem {
+		t.Fatalf("DNS rule should target %s, got %#v", namespaceKubeSystem, dns.To)
 	}
 }
 

@@ -19,6 +19,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,17 +41,19 @@ const (
 
 	// operatorNamespace holds the operator itself and never belongs to a Tenant.
 	operatorNamespace = "virtfoundry-system"
+
+	namespaceKubeSystem = "kube-system"
 )
 
 // protectedNamespaces are never mutated or deleted by this operator. Namespace
 // names are derived from a Tenant slug, so a bug in that derivation is the only
 // way one of these could be reached — this map makes that failure mode safe.
 var protectedNamespaces = map[string]struct{}{
-	"default":         {},
-	"kube-node-lease": {},
-	"kube-public":     {},
-	"kube-system":     {},
-	operatorNamespace: {},
+	"default":           {},
+	"kube-node-lease":   {},
+	"kube-public":       {},
+	namespaceKubeSystem: {},
+	operatorNamespace:   {},
 }
 
 // errNamespaceNotOwned is returned whenever the operator declines to write to a
@@ -74,9 +77,7 @@ func tenantNamespaceLabels(tenant *virtfoundryv1alpha1.Tenant) map[string]string
 		labelManagedBy: managedByOperator,
 		labelTenant:    tenant.Spec.Slug,
 	}
-	for k, v := range tenantPSALabels() {
-		labels[k] = v
-	}
+	maps.Copy(labels, tenantPSALabels())
 	return labels
 }
 

@@ -85,13 +85,13 @@ func TestAssertTenantNamespaceOwnedRefusesProtectedNamespace(t *testing.T) {
 	tenant := tenantFixture("acme", "acme", "uid-acme")
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   "kube-system",
+			Name:   namespaceKubeSystem,
 			Labels: tenantNamespaceLabels(tenant),
 		},
 	}
 	err := assertTenantNamespaceOwned(ns, tenant)
 	if !errors.Is(err, errNamespaceNotOwned) {
-		t.Fatalf("assertTenantNamespaceOwned(kube-system) = %v, want errNamespaceNotOwned", err)
+		t.Fatalf("assertTenantNamespaceOwned(%s) = %v, want errNamespaceNotOwned", namespaceKubeSystem, err)
 	}
 }
 

@@ -123,7 +123,7 @@ func defaultDenyNetworkPolicySpec() networkingv1.NetworkPolicySpec {
 				// DNS to kube-system CoreDNS / kube-dns.
 				To: []networkingv1.NetworkPolicyPeer{{
 					NamespaceSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{labelK8sName: "kube-system"},
+						MatchLabels: map[string]string{labelK8sName: namespaceKubeSystem},
 					},
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{labelK8sApp: "kube-dns"},
