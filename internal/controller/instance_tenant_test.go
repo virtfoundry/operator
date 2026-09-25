@@ -36,10 +36,10 @@ func TestAssertInstanceInTenantNamespace(t *testing.T) {
 
 	goodNS := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "virtfoundry-tenant-acme",
+			Name: tenantNamespaceName(testAcmeSlug),
 			Labels: map[string]string{
 				labelPartOf: partOfVirtFoundry,
-				labelTenant: "acme",
+				labelTenant: testAcmeSlug,
 			},
 		},
 	}
@@ -58,7 +58,7 @@ func TestAssertInstanceInTenantNamespace(t *testing.T) {
 
 	t.Run("accepts labeled tenant namespace", func(t *testing.T) {
 		inst := &virtfoundryv1alpha1.Instance{
-			ObjectMeta: metav1.ObjectMeta{Name: "vm", Namespace: "virtfoundry-tenant-acme"},
+			ObjectMeta: metav1.ObjectMeta{Name: "vm", Namespace: tenantNamespaceName(testAcmeSlug)},
 		}
 		if err := r.assertInstanceInTenantNamespace(context.Background(), inst); err != nil {
 			t.Fatal(err)
