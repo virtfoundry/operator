@@ -3,6 +3,10 @@ kind: Instance
 metadata:
   name: cr-smoke-demo
   namespace: virtfoundry-tenant-default
+  annotations:
+    # Opt into pod network for smoke tests without Multus. Production guests
+    # should use spec.nics (NAD/VPC) instead — see README tenant isolation notes.
+    virtfoundry.io/allow-pod-network: "true"
 spec:
   displayName: cr-smoke-demo
   offeringRef:

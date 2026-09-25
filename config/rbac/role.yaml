@@ -7,6 +7,19 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - limitranges
+  - resourcequotas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - namespaces
   verbs:
   - create
@@ -20,6 +33,18 @@ rules:
   resources:
   - virtualmachineinstances
   - virtualmachines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
   verbs:
   - create
   - delete
@@ -57,6 +82,7 @@ rules:
 - apiGroups:
   - virtfoundry.io
   resources:
+  - networks
   - offerings
   - templates
   verbs:

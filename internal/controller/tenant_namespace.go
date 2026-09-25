@@ -69,11 +69,15 @@ func tenantNamespaceName(slug string) string {
 }
 
 func tenantNamespaceLabels(tenant *virtfoundryv1alpha1.Tenant) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		labelPartOf:    partOfVirtFoundry,
 		labelManagedBy: managedByOperator,
 		labelTenant:    tenant.Spec.Slug,
 	}
+	for k, v := range tenantPSALabels() {
+		labels[k] = v
+	}
+	return labels
 }
 
 // validateTenantNamespaceName rejects any name outside the tenant namespace

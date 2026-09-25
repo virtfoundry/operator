@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -72,6 +73,9 @@ var _ = Describe("Tenant Controller", func() {
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: tenantNS}, ns)).To(Succeed())
 				g.Expect(ns.Labels["app.kubernetes.io/part-of"]).To(Equal("virtfoundry"))
 				g.Expect(ns.Labels["virtfoundry.io/tenant"]).To(Equal(tenantSlug))
+				g.Expect(ns.Labels[labelPSAEnforce]).To(Equal(psaPrivileged))
+				g.Expect(ns.Labels[labelPSAAudit]).To(Equal(psaPrivileged))
+				g.Expect(ns.Labels[labelPSAWarn]).To(Equal(psaPrivileged))
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
@@ -80,6 +84,30 @@ var _ = Describe("Tenant Controller", func() {
 				g.Expect(got.Status.Phase).To(Equal("Ready"))
 				g.Expect(got.Status.Namespace).To(Equal(tenantNS))
 				g.Expect(got.Finalizers).To(ContainElement("virtfoundry.io/finalizer"))
+			}, timeout, interval).Should(Succeed())
+
+			By("ensuring default-deny NetworkPolicy, ResourceQuota, and LimitRange")
+			Eventually(func(g Gomega) {
+				np := &networkingv1.NetworkPolicy{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Namespace: tenantNS, Name: isolationNetworkPolicyName,
+				}, np)).To(Succeed())
+				g.Expect(np.Spec.PolicyTypes).To(ContainElements(
+					networkingv1.PolicyTypeIngress,
+					networkingv1.PolicyTypeEgress,
+				))
+
+				rq := &corev1.ResourceQuota{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Namespace: tenantNS, Name: isolationResourceQuotaName,
+				}, rq)).To(Succeed())
+				g.Expect(rq.Spec.Hard).To(HaveKey(corev1.ResourcePods))
+
+				lr := &corev1.LimitRange{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Namespace: tenantNS, Name: isolationLimitRangeName,
+				}, lr)).To(Succeed())
+				g.Expect(lr.Spec.Limits).NotTo(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
 
