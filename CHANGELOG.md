@@ -6,7 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
-## [0.8.0] - 2026-09-25
+## [0.7.2] - 2026-09-25
 
 Security release: tenant isolation, ContainerDisk image allowlist, CR admission bounds, least-privilege RBAC.
 
@@ -32,7 +32,7 @@ Security release: tenant isolation, ContainerDisk image allowlist, CR admission 
 
 - Chart and default image tag aligned with VirtFoundry `0.7.1` (no functional operator changes)
 
-[0.8.0]: https://github.com/virtfoundry/operator/compare/v0.7.1...v0.8.0
+[0.7.2]: https://github.com/virtfoundry/operator/compare/v0.7.1...v0.7.2
 
 [0.7.1]: https://github.com/virtfoundry/operator/releases/tag/v0.7.1
 
