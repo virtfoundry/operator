@@ -27,3 +27,5 @@ jobs:
         run: make lint-config
       - name: Run linter
         run: make lint
+      - name: Verify chart RBAC stays least privilege
+        run: make verify-chart-rbac

@@ -18,7 +18,9 @@ package controller
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"maps"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,11 +30,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
 )
 
-const tenantFinalizer = "virtfoundry.io/finalizer"
+const (
+	tenantFinalizer = "virtfoundry.io/finalizer"
+
+	// namespaceDeletionPoll is how often deletion of a tenant namespace is polled
+	// while the API server drains its contents.
+	namespaceDeletionPoll = 5 * time.Second
+)
 
 // TenantReconciler reconciles a Tenant object.
 type TenantReconciler struct {
@@ -40,40 +49,25 @@ type TenantReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// Namespace names are derived from a Tenant slug, so RBAC cannot scope these
+// verbs any further: resourceNames does not support prefixes and namespaces are
+// cluster-scoped. Ownership is therefore enforced by assertTenantNamespaceOwned
+// below, and by the optional ValidatingAdmissionPolicy shipped with the chart.
+//
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;patch;delete
 
 // Reconcile ensures Namespace virtfoundry-tenant-{slug} exists for the Tenant.
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := logf.FromContext(ctx)
 	tenant := &virtfoundryv1alpha1.Tenant{}
 	if err := r.Get(ctx, req.NamespacedName, tenant); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	nsName := fmt.Sprintf("virtfoundry-tenant-%s", tenant.Spec.Slug)
-
 	if !tenant.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
-			ns := &corev1.Namespace{}
-			err := r.Get(ctx, client.ObjectKey{Name: nsName}, ns)
-			if err == nil {
-				if err := r.Delete(ctx, ns); err != nil {
-					return ctrl.Result{}, err
-				}
-				return ctrl.Result{Requeue: true}, nil
-			}
-			if !apierrors.IsNotFound(err) {
-				return ctrl.Result{}, err
-			}
-			controllerutil.RemoveFinalizer(tenant, tenantFinalizer)
-			if err := r.Update(ctx, tenant); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
+		return r.reconcileDelete(ctx, tenant)
 	}
 
 	if !controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
@@ -84,20 +78,44 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, ns, func() error {
-		if ns.Labels == nil {
-			ns.Labels = map[string]string{}
+	return r.reconcileNamespace(ctx, tenant)
+}
+
+// reconcileNamespace creates the tenant namespace, or adopts an existing one
+// only when it can be proven to belong to this Tenant.
+func (r *TenantReconciler) reconcileNamespace(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+) (ctrl.Result, error) {
+	logger := logf.FromContext(ctx)
+	nsName := tenantNamespaceName(tenant.Spec.Slug)
+
+	if err := validateTenantNamespaceName(nsName); err != nil {
+		logger.Error(err, "Refused to manage Namespace for Tenant", "namespace", nsName)
+		return r.markFailed(ctx, tenant, err)
+	}
+
+	ns := &corev1.Namespace{}
+	err := r.Get(ctx, client.ObjectKey{Name: nsName}, ns)
+	switch {
+	case apierrors.IsNotFound(err):
+		if err := r.createNamespace(ctx, tenant, nsName); err != nil {
+			logger.Error(err, "Failed to create Namespace", "namespace", nsName)
+			return r.markFailed(ctx, tenant, err)
 		}
-		ns.Labels["app.kubernetes.io/part-of"] = "virtfoundry"
-		ns.Labels["virtfoundry.io/tenant"] = tenant.Spec.Slug
-		return nil
-	})
-	if err != nil {
-		logger.Error(err, "failed to ensure namespace")
-		tenant.Status.Phase = "Failed"
-		_ = r.Status().Update(ctx, tenant)
+		logger.Info("Created Namespace for Tenant", "namespace", nsName, "tenant", tenant.Name)
+	case err != nil:
 		return ctrl.Result{}, err
+	default:
+		if err := assertTenantNamespaceOwned(ns, tenant); err != nil {
+			// Adopting a foreign namespace would later let this Tenant delete it.
+			logger.Error(err, "Refused to adopt Namespace for Tenant", "namespace", nsName, "tenant", tenant.Name)
+			return r.markFailed(ctx, tenant, err)
+		}
+		if err := r.stampNamespace(ctx, tenant, ns); err != nil {
+			logger.Error(err, "Failed to update Namespace", "namespace", nsName)
+			return ctrl.Result{}, err
+		}
 	}
 
 	tenant.Status.Phase = "Ready"
@@ -106,6 +124,107 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *TenantReconciler) createNamespace(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+	nsName string,
+) error {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   nsName,
+			Labels: tenantNamespaceLabels(tenant),
+		},
+	}
+	if err := controllerutil.SetControllerReference(tenant, ns, r.Scheme); err != nil {
+		return err
+	}
+	if err := r.Create(ctx, ns); err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
+}
+
+// stampNamespace keeps labels and the ownerRef current on an owned namespace.
+func (r *TenantReconciler) stampNamespace(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+	ns *corev1.Namespace,
+) error {
+	patch := client.MergeFrom(ns.DeepCopy())
+	if ns.Labels == nil {
+		ns.Labels = map[string]string{}
+	}
+	maps.Copy(ns.Labels, tenantNamespaceLabels(tenant))
+	if err := controllerutil.SetControllerReference(tenant, ns, r.Scheme); err != nil {
+		return err
+	}
+	return r.Patch(ctx, ns, patch)
+}
+
+// reconcileDelete removes the tenant namespace, but only the one this operator
+// created for this Tenant. Anything else is left untouched.
+func (r *TenantReconciler) reconcileDelete(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+) (ctrl.Result, error) {
+	logger := logf.FromContext(ctx)
+	if !controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
+		return ctrl.Result{}, nil
+	}
+
+	nsName := tenantNamespaceName(tenant.Spec.Slug)
+	ns := &corev1.Namespace{}
+	err := r.Get(ctx, client.ObjectKey{Name: nsName}, ns)
+	switch {
+	case apierrors.IsNotFound(err):
+		// Nothing left to clean up.
+	case err != nil:
+		return ctrl.Result{}, err
+	default:
+		if guardErr := assertTenantNamespaceOwned(ns, tenant); guardErr != nil {
+			// Never delete a namespace we cannot prove we own. Drop the finalizer
+			// so the Tenant is not wedged on a namespace that is not ours.
+			logger.Error(guardErr, "Refused to delete Namespace for Tenant",
+				"namespace", nsName, "tenant", tenant.Name)
+			break
+		}
+		if ns.DeletionTimestamp.IsZero() {
+			// The UID precondition makes the ownership check above non-racy: if the
+			// namespace was recreated since the Get, the delete is rejected.
+			err := r.Delete(ctx, ns, client.Preconditions{UID: &ns.UID})
+			if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsConflict(err) {
+				return ctrl.Result{}, err
+			}
+			logger.Info("Deleted Namespace for Tenant", "namespace", nsName, "tenant", tenant.Name)
+		}
+		return ctrl.Result{RequeueAfter: namespaceDeletionPoll}, nil
+	}
+
+	controllerutil.RemoveFinalizer(tenant, tenantFinalizer)
+	if err := r.Update(ctx, tenant); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+// markFailed records the failure on the Tenant status. An ownership refusal is
+// returned as a terminal error: retrying cannot change the outcome, an operator
+// has to rename the slug or clean up the namespace.
+func (r *TenantReconciler) markFailed(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+	cause error,
+) (ctrl.Result, error) {
+	tenant.Status.Phase = "Failed"
+	if err := r.Status().Update(ctx, tenant); err != nil {
+		return ctrl.Result{}, err
+	}
+	if errors.Is(cause, errNamespaceNotOwned) {
+		return ctrl.Result{}, reconcile.TerminalError(cause)
+	}
+	return ctrl.Result{}, cause
 }
 
 // SetupWithManager sets up the controller with the Manager.
