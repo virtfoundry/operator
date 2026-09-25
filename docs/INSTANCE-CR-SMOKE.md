@@ -36,4 +36,6 @@ kubectl get vm -n virtfoundry-tenant-default  # VM should be gone
 ## Notes
 
 - ISO templates return `status.phase=Failed` until CDI controller lands.
-- Multus NICs from `spec.nics` are not wired in this slice (pod network only).
+- Guests do **not** attach the KubeVirt pod network by default. This sample
+  opts in via `virtfoundry.io/allow-pod-network=true`. Production Instances
+  should set `spec.nics` to Networks that publish Multus NAD names in status.

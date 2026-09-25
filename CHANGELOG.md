@@ -4,6 +4,20 @@ All notable changes to the **VirtFoundry operator** are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning aligned with [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [Unreleased]
+
+### Added
+
+- Tenant reconcile ensures PSA (`privileged`), default-deny NetworkPolicy
+  (`virtfoundry-default-deny`), ResourceQuota, and LimitRange in tenant namespaces
+- Instance Multus/VPC NIC wiring from `spec.nics` → Network status NAD
+
+### Changed
+
+- **Breaking:** Instance no longer attaches KubeVirt pod network (masquerade) by
+  default. Set `spec.nics` or annotate `virtfoundry.io/allow-pod-network=true`
+- Instance reconcile refuses namespaces that are not labelled VirtFoundry tenants
+
 ## [0.7.1] - 2026-09-04
 
 ### Changed

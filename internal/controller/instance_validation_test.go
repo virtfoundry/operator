@@ -23,7 +23,7 @@ func TestAssertInstanceTenantNamespace(t *testing.T) {
 	if err := assertInstanceTenantNamespace("virtfoundry-tenant-acme"); err != nil {
 		t.Fatalf("accepted tenant ns rejected: %v", err)
 	}
-	for _, ns := range []string{"default", "virtfoundry-system", "virtfoundry-tenant-", "argocd", "other"} {
+	for _, ns := range []string{namespaceDefault, "virtfoundry-system", "virtfoundry-tenant-", "argocd", "other"} {
 		if err := assertInstanceTenantNamespace(ns); err == nil {
 			t.Fatalf("expected reject for %q", ns)
 		}

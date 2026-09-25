@@ -59,6 +59,9 @@ type TenantReconciler struct {
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile ensures Namespace virtfoundry-tenant-{slug} exists for the Tenant.
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -137,6 +140,11 @@ func (r *TenantReconciler) reconcileNamespace(
 			logger.Error(err, "Failed to update Namespace", "namespace", nsName)
 			return ctrl.Result{}, err
 		}
+	}
+
+	if err := r.ensureTenantIsolation(ctx, tenant, nsName); err != nil {
+		logger.Error(err, "Failed to ensure tenant isolation", "namespace", nsName)
+		return r.markFailed(ctx, tenant, err)
 	}
 
 	tenant.Status.Phase = "Ready"

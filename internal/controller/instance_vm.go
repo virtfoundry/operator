@@ -38,6 +38,14 @@ const (
 	powerStateRunning   = "Running"
 	powerStateHalted    = "Halted"
 	defaultContainerImg = "quay.io/kubevirt/cirros-container-disk-demo"
+
+	// annotationAllowPodNetwork opts an Instance into the KubeVirt pod network
+	// (masquerade). Production path does not attach it by default — guests must
+	// use Multus/VPC networks via spec.nics, or set this annotation to "true".
+	// BREAKING CHANGE vs operator ≤0.7: Instances without NICs or this annotation
+	// fail reconcile instead of landing on the cluster CNI.
+	annotationAllowPodNetwork = "virtfoundry.io/allow-pod-network"
+	annotationTruthy          = "true"
 )
 
 type vmBuildInput struct {
@@ -48,6 +56,8 @@ type vmBuildInput struct {
 	dedicatedCPU bool
 	cloudInit    string
 	powerState   string
+	interfaces   []kubevirtv1.Interface
+	networks     []kubevirtv1.Network
 }
 
 func instancePowerState(inst *virtfoundryv1alpha1.Instance) string {
@@ -100,6 +110,13 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		in.cloudInit = tmpl.Spec.CloudInitUserData
 	}
 
+	ifaces, networks, err := r.resolveVMNetworks(ctx, inst)
+	if err != nil {
+		return in, err
+	}
+	in.interfaces = ifaces
+	in.networks = networks
+
 	return in, nil
 }
 
@@ -116,6 +133,90 @@ func (r *InstanceReconciler) resolveTemplate(ctx context.Context, inst *virtfoun
 		}
 	}
 	return nil, fmt.Errorf("template %q not found in %s or virtfoundry-system", name, inst.Namespace)
+}
+
+// resolveVMNetworks builds guest NICs. Production default: Multus/VPC only.
+// Pod masquerade requires an explicit opt-in annotation.
+func (r *InstanceReconciler) resolveVMNetworks(
+	ctx context.Context,
+	inst *virtfoundryv1alpha1.Instance,
+) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
+	if allowPodNetwork(inst) {
+		return podNetworkAttachment()
+	}
+
+	if len(inst.Spec.Nics) == 0 {
+		return nil, nil, fmt.Errorf(
+			"no guest NICs configured: set spec.nics to attach Multus/VPC networks, or annotate %s=true to opt into the pod network",
+			annotationAllowPodNetwork,
+		)
+	}
+
+	ifaces := make([]kubevirtv1.Interface, 0, len(inst.Spec.Nics))
+	networks := make([]kubevirtv1.Network, 0, len(inst.Spec.Nics))
+	for i, nic := range inst.Spec.Nics {
+		name := strings.TrimSpace(nic.Name)
+		if name == "" {
+			name = fmt.Sprintf("nic%d", i)
+		}
+		if nic.NetworkRef.Name == "" {
+			return nil, nil, fmt.Errorf("spec.nics[%d]: networkRef.name is required", i)
+		}
+
+		net := &virtfoundryv1alpha1.Network{}
+		if err := r.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: nic.NetworkRef.Name}, net); err != nil {
+			return nil, nil, fmt.Errorf("spec.nics[%d]: network %q: %w", i, nic.NetworkRef.Name, err)
+		}
+		if net.Status.NADName == "" {
+			return nil, nil, fmt.Errorf(
+				"spec.nics[%d]: network %q has no Multus NAD in status yet (NADName empty)",
+				i, nic.NetworkRef.Name,
+			)
+		}
+
+		nadRef := net.Status.NADName
+		if net.Status.NADNamespace != "" && net.Status.NADNamespace != inst.Namespace {
+			nadRef = net.Status.NADNamespace + "/" + net.Status.NADName
+		}
+
+		ifaces = append(ifaces, kubevirtv1.Interface{
+			Name: name,
+			InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+				Bridge: &kubevirtv1.InterfaceBridge{},
+			},
+		})
+		networks = append(networks, kubevirtv1.Network{
+			Name: name,
+			NetworkSource: kubevirtv1.NetworkSource{
+				Multus: &kubevirtv1.MultusNetwork{NetworkName: nadRef},
+			},
+		})
+	}
+	return ifaces, networks, nil
+}
+
+func allowPodNetwork(inst *virtfoundryv1alpha1.Instance) bool {
+	if inst.Annotations == nil {
+		return false
+	}
+	v := strings.TrimSpace(strings.ToLower(inst.Annotations[annotationAllowPodNetwork]))
+	return v == annotationTruthy || v == "1" || v == "yes"
+}
+
+func podNetworkAttachment() ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
+	ifaces := []kubevirtv1.Interface{{
+		Name: podNetworkName,
+		InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+			Masquerade: &kubevirtv1.InterfaceMasquerade{},
+		},
+	}}
+	networks := []kubevirtv1.Network{{
+		Name: podNetworkName,
+		NetworkSource: kubevirtv1.NetworkSource{
+			Pod: &kubevirtv1.PodNetwork{},
+		},
+	}}
+	return ifaces, networks, nil
 }
 
 func (r *InstanceReconciler) ensureVirtualMachine(ctx context.Context, inst *virtfoundryv1alpha1.Instance, kvName string) error {
@@ -163,19 +264,6 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 		runStrategy = kubevirtv1.RunStrategyHalted
 	}
 
-	ifaces := []kubevirtv1.Interface{{
-		Name: podNetworkName,
-		InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-			Masquerade: &kubevirtv1.InterfaceMasquerade{},
-		},
-	}}
-	networks := []kubevirtv1.Network{{
-		Name: podNetworkName,
-		NetworkSource: kubevirtv1.NetworkSource{
-			Pod: &kubevirtv1.PodNetwork{},
-		},
-	}}
-
 	cpu, err := guestCPUSpec(in.cpu, in.dedicatedCPU)
 	if err != nil {
 		return nil, err
@@ -187,12 +275,15 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 
 	vmiSpec := kubevirtv1.VirtualMachineInstanceSpec{
 		Domain: kubevirtv1.DomainSpec{
-			CPU:       cpu,
-			Devices:   kubevirtv1.Devices{Disks: linuxDisks(), Interfaces: ifaces},
+			CPU: cpu,
+			Devices: kubevirtv1.Devices{
+				Disks:      linuxDisks(),
+				Interfaces: in.interfaces,
+			},
 			Resources: resources,
 		},
 		Volumes:  linuxVolumes(in.image, in.cloudInit),
-		Networks: networks,
+		Networks: in.networks,
 	}
 
 	return &kubevirtv1.VirtualMachine{

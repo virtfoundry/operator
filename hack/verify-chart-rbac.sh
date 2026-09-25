@@ -9,10 +9,10 @@ set -euo pipefail
 CHART_DIR="${CHART_DIR:-charts/virtfoundry-operator}"
 VAP_API="admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy"
 
-# API groups / resource names that belong to future controllers, not Tenant+Instance.
+# API groups / resource names that belong to future controllers, not the
+# currently shipped Tenant isolation + Instance reconcile surface.
 FORBIDDEN_PATTERNS=(
   'secrets'
-  'networkpolicies'
   'persistentvolumeclaims'
   'volumesnapshots'
   'network-attachment-definitions'
@@ -23,7 +23,6 @@ FORBIDDEN_PATTERNS=(
   'roles'
   'apikeys'
   'vpcs'
-  'networks'
   'securitygroups'
   'disks'
   'disksnapshots'
@@ -35,8 +34,10 @@ FORBIDDEN_PATTERNS=(
 REQUIRED_SNIPPETS=(
   'resources: \["tenants"\]'
   'resources: \["instances"\]'
-  'resources: \["offerings", "templates"\]'
+  'resources: \["offerings", "templates", "networks"\]'
   'resources: \["namespaces"\]'
+  'resources: \["resourcequotas", "limitranges"\]'
+  'resources: \["networkpolicies"\]'
   'resources: \["virtualmachines", "virtualmachineinstances"\]'
 )
 
@@ -63,7 +64,7 @@ for snip in "${REQUIRED_SNIPPETS[@]}"; do
     exit 1
   fi
 done
-echo "OK: rendered ClusterRole covers Tenant + Instance (+ KubeVirt VMs/VMIs)"
+echo "OK: rendered ClusterRole covers Tenant isolation + Instance (+ KubeVirt VMs/VMIs)"
 
 # The ClusterRole cannot be scoped by resourceNames (tenant namespaces are
 # virtfoundry-tenant-{slug}), so at least keep `update` off namespaces.

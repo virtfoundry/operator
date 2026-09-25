@@ -11,6 +11,8 @@ import (
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
 )
 
+const testAcmeSlug = "acme"
+
 func tenantFixture(name, slug string, uid types.UID) *virtfoundryv1alpha1.Tenant {
 	return &virtfoundryv1alpha1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
@@ -52,13 +54,13 @@ func TestValidateTenantNamespaceNameRejectsForeignPrefix(t *testing.T) {
 }
 
 func TestValidateTenantNamespaceNameAcceptsTenantNamespace(t *testing.T) {
-	if err := validateTenantNamespaceName(tenantNamespaceName("acme")); err != nil {
+	if err := validateTenantNamespaceName(tenantNamespaceName(testAcmeSlug)); err != nil {
 		t.Fatalf("validateTenantNamespaceName: %v", err)
 	}
 }
 
 func TestAssertTenantNamespaceOwnedAcceptsOwnNamespace(t *testing.T) {
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	if err := assertTenantNamespaceOwned(ownedNamespaceFixture(tenant), tenant); err != nil {
 		t.Fatalf("assertTenantNamespaceOwned: %v", err)
 	}
@@ -66,13 +68,13 @@ func TestAssertTenantNamespaceOwnedAcceptsOwnNamespace(t *testing.T) {
 
 func TestAssertTenantNamespaceOwnedAdoptsLegacyNamespace(t *testing.T) {
 	// Namespaces created before ownerRefs were stamped carry only the labels.
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: tenantNamespaceName("acme"),
+			Name: tenantNamespaceName(testAcmeSlug),
 			Labels: map[string]string{
 				labelPartOf: partOfVirtFoundry,
-				labelTenant: "acme",
+				labelTenant: testAcmeSlug,
 			},
 		},
 	}
@@ -82,23 +84,23 @@ func TestAssertTenantNamespaceOwnedAdoptsLegacyNamespace(t *testing.T) {
 }
 
 func TestAssertTenantNamespaceOwnedRefusesProtectedNamespace(t *testing.T) {
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   "kube-system",
+			Name:   namespaceKubeSystem,
 			Labels: tenantNamespaceLabels(tenant),
 		},
 	}
 	err := assertTenantNamespaceOwned(ns, tenant)
 	if !errors.Is(err, errNamespaceNotOwned) {
-		t.Fatalf("assertTenantNamespaceOwned(kube-system) = %v, want errNamespaceNotOwned", err)
+		t.Fatalf("assertTenantNamespaceOwned(%s) = %v, want errNamespaceNotOwned", namespaceKubeSystem, err)
 	}
 }
 
 func TestAssertTenantNamespaceOwnedRefusesUnlabelledNamespace(t *testing.T) {
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: tenantNamespaceName("acme")},
+		ObjectMeta: metav1.ObjectMeta{Name: tenantNamespaceName(testAcmeSlug)},
 	}
 	err := assertTenantNamespaceOwned(ns, tenant)
 	if !errors.Is(err, errNamespaceNotOwned) {
@@ -107,7 +109,7 @@ func TestAssertTenantNamespaceOwnedRefusesUnlabelledNamespace(t *testing.T) {
 }
 
 func TestAssertTenantNamespaceOwnedRefusesForeignTenantLabel(t *testing.T) {
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	ns := ownedNamespaceFixture(tenant)
 	ns.Labels[labelTenant] = "globex"
 	err := assertTenantNamespaceOwned(ns, tenant)
@@ -118,8 +120,8 @@ func TestAssertTenantNamespaceOwnedRefusesForeignTenantLabel(t *testing.T) {
 
 func TestAssertTenantNamespaceOwnedRefusesNamespaceOfAnotherTenant(t *testing.T) {
 	// Two Tenants may declare the same slug; only the owner may manage it.
-	owner := tenantFixture("acme", "acme", "uid-acme")
-	squatter := tenantFixture("acme-copy", "acme", "uid-acme-copy")
+	owner := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
+	squatter := tenantFixture("acme-copy", testAcmeSlug, "uid-acme-copy")
 	err := assertTenantNamespaceOwned(ownedNamespaceFixture(owner), squatter)
 	if !errors.Is(err, errNamespaceNotOwned) {
 		t.Fatalf("assertTenantNamespaceOwned(other tenant) = %v, want errNamespaceNotOwned", err)
@@ -127,13 +129,13 @@ func TestAssertTenantNamespaceOwnedRefusesNamespaceOfAnotherTenant(t *testing.T)
 }
 
 func TestAssertTenantNamespaceDeletableRequiresOwnerRef(t *testing.T) {
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	legacy := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: tenantNamespaceName("acme"),
+			Name: tenantNamespaceName(testAcmeSlug),
 			Labels: map[string]string{
 				labelPartOf: partOfVirtFoundry,
-				labelTenant: "acme",
+				labelTenant: testAcmeSlug,
 			},
 		},
 	}
@@ -144,15 +146,15 @@ func TestAssertTenantNamespaceDeletableRequiresOwnerRef(t *testing.T) {
 }
 
 func TestAssertTenantNamespaceDeletableAcceptsOwnedNamespace(t *testing.T) {
-	tenant := tenantFixture("acme", "acme", "uid-acme")
+	tenant := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
 	if err := assertTenantNamespaceDeletable(ownedNamespaceFixture(tenant), tenant); err != nil {
 		t.Fatalf("assertTenantNamespaceDeletable: %v", err)
 	}
 }
 
 func TestAssertTenantNamespaceDeletableRefusesForeignOwner(t *testing.T) {
-	owner := tenantFixture("acme", "acme", "uid-acme")
-	squatter := tenantFixture("acme-copy", "acme", "uid-acme-copy")
+	owner := tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme")
+	squatter := tenantFixture("acme-copy", testAcmeSlug, "uid-acme-copy")
 	err := assertTenantNamespaceDeletable(ownedNamespaceFixture(owner), squatter)
 	if !errors.Is(err, errNamespaceNotOwned) {
 		t.Fatalf("assertTenantNamespaceDeletable(other tenant) = %v, want errNamespaceNotOwned", err)
@@ -161,7 +163,7 @@ func TestAssertTenantNamespaceDeletableRefusesForeignOwner(t *testing.T) {
 
 func TestAssertTenantNamespaceOwnedRefusesNamespaceOfAnotherSlug(t *testing.T) {
 	globex := tenantFixture("globex", "globex", "uid-globex")
-	acmeNamespace := ownedNamespaceFixture(tenantFixture("acme", "acme", "uid-acme"))
+	acmeNamespace := ownedNamespaceFixture(tenantFixture(testAcmeSlug, testAcmeSlug, "uid-acme"))
 	err := assertTenantNamespaceOwned(acmeNamespace, globex)
 	if !errors.Is(err, errNamespaceNotOwned) {
 		t.Fatalf("assertTenantNamespaceOwned(other slug) = %v, want errNamespaceNotOwned", err)

@@ -48,6 +48,8 @@ type InstanceReconciler struct {
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=instances/finalizers,verbs=update
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=offerings,verbs=get;list;watch
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=templates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=virtfoundry.io,resources=networks,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines;virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 
 func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -90,6 +92,17 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true}, nil
+	}
+
+	if err := r.assertInstanceInTenantNamespace(ctx, inst); err != nil {
+		inst.Status.KubeVirtName = kvName
+		inst.Status.Phase = virtfoundryv1alpha1.PhaseFailed
+		inst.Status.ErrorMessage = err.Error()
+		if statusErr := r.Status().Update(ctx, inst); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		logger.Error(err, "Refused Instance outside tenant namespace")
+		return ctrl.Result{}, nil
 	}
 
 	if err := r.ensureVirtualMachine(ctx, inst, kvName); err != nil {

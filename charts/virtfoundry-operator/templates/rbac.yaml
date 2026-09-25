@@ -20,7 +20,7 @@ rules:
     resources: ["instances"]
     verbs: ["get", "list", "watch", "update", "patch"]
   - apiGroups: ["virtfoundry.io"]
-    resources: ["offerings", "templates"]
+    resources: ["offerings", "templates", "networks"]
     verbs: ["get", "list", "watch"]
   # Tenant namespaces are named virtfoundry-tenant-{slug}, so resourceNames
   # cannot scope these verbs (no prefix matching, and namespaces are cluster
@@ -31,6 +31,12 @@ rules:
     verbs: ["get", "list", "watch", "create", "patch", "delete"]
   # No secrets: no controller reads or writes Secrets. If one ever needs to,
   # grant a Role in {{ .Values.namespace }} instead of a ClusterRole.
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["kubevirt.io"]
     resources: ["virtualmachines", "virtualmachineinstances"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
