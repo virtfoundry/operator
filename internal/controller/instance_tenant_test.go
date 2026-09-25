@@ -77,7 +77,7 @@ func TestAssertInstanceInTenantNamespace(t *testing.T) {
 
 	t.Run("rejects non-tenant namespace name", func(t *testing.T) {
 		inst := &virtfoundryv1alpha1.Instance{
-			ObjectMeta: metav1.ObjectMeta{Name: "vm", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "vm", Namespace: namespaceDefault},
 		}
 		err := r.assertInstanceInTenantNamespace(context.Background(), inst)
 		if err == nil || !strings.Contains(err.Error(), tenantNamespacePrefix) {

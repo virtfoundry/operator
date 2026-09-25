@@ -43,13 +43,14 @@ const (
 	operatorNamespace = "virtfoundry-system"
 
 	namespaceKubeSystem = "kube-system"
+	namespaceDefault    = "default"
 )
 
 // protectedNamespaces are never mutated or deleted by this operator. Namespace
 // names are derived from a Tenant slug, so a bug in that derivation is the only
 // way one of these could be reached — this map makes that failure mode safe.
 var protectedNamespaces = map[string]struct{}{
-	"default":           {},
+	namespaceDefault:    {},
 	"kube-node-lease":   {},
 	"kube-public":       {},
 	namespaceKubeSystem: {},
