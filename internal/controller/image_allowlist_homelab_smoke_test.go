@@ -58,12 +58,12 @@ func TestHomelab_ImageAllowlistAgainstLiveTemplates(t *testing.T) {
 	evil := &virtfoundryv1alpha1.Template{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "sec22-evil-smoke",
-			Namespace: "virtfoundry-system",
+			Namespace: operatorNamespace,
 		},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      "evil.example.com/pwn:latest",
 			SourceType: "container",
-			OSType:     "linux",
+			OSType:     osTypeLinux,
 		},
 	}
 	_ = c.Delete(ctx, evil)

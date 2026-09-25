@@ -16,7 +16,7 @@ func TestValidateContainerDiskImage_AllowsDefaults(t *testing.T) {
 	t.Parallel()
 	for _, img := range []string{
 		"quay.io/kubevirt/cirros-container-disk-demo",
-		"quay.io/containerdisks/ubuntu:22.04",
+		catalogUbuntuImage,
 		"quay.io/containerdisks/fedora:40",
 		defaultContainerImg,
 	} {
@@ -72,11 +72,11 @@ func TestResolveVMBuildInput_RejectsDisallowedTemplateImage(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 	tmpl := &virtfoundryv1alpha1.Template{
-		ObjectMeta: metav1.ObjectMeta{Name: "evil", Namespace: "virtfoundry-system"},
+		ObjectMeta: metav1.ObjectMeta{Name: "evil", Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      "evil.example.com/pwn:latest",
 			SourceType: "container",
-			OSType:     "linux",
+			OSType:     osTypeLinux,
 		},
 	}
 	r := &InstanceReconciler{
@@ -104,11 +104,11 @@ func TestResolveVMBuildInput_AllowsCatalogImage(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 	tmpl := &virtfoundryv1alpha1.Template{
-		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu-2204", Namespace: "virtfoundry-system"},
+		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu-2204", Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
-			Image:      "quay.io/containerdisks/ubuntu:22.04",
+			Image:      catalogUbuntuImage,
 			SourceType: "container",
-			OSType:     "linux",
+			OSType:     osTypeLinux,
 		},
 	}
 	r := &InstanceReconciler{
@@ -130,7 +130,7 @@ func TestResolveVMBuildInput_AllowsCatalogImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if in.image != "quay.io/containerdisks/ubuntu:22.04" {
+	if in.image != catalogUbuntuImage {
 		t.Fatalf("image=%q", in.image)
 	}
 }

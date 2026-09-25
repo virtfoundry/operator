@@ -41,8 +41,8 @@ func TestBuildVirtualMachine_RunningWithPodNetworkOptIn(t *testing.T) {
 	vm, err := buildVirtualMachine(inst, testVMName, vmBuildInput{
 		cpu:        1,
 		memoryMi:   1024,
-		image:      "quay.io/containerdisks/ubuntu:22.04",
-		osType:     "linux",
+		image:      catalogUbuntuImage,
+		osType:     osTypeLinux,
 		powerState: powerStateRunning,
 		interfaces: ifaces,
 		networks:   networks,
@@ -57,7 +57,7 @@ func TestBuildVirtualMachine_RunningWithPodNetworkOptIn(t *testing.T) {
 	if vm.Spec.RunStrategy == nil || *vm.Spec.RunStrategy != kubevirtv1.RunStrategyAlways {
 		t.Fatalf("expected RunStrategyAlways, got %#v", vm.Spec.RunStrategy)
 	}
-	if vm.Spec.Template.Spec.Volumes[0].ContainerDisk.Image != "quay.io/containerdisks/ubuntu:22.04" {
+	if vm.Spec.Template.Spec.Volumes[0].ContainerDisk.Image != catalogUbuntuImage {
 		t.Fatalf("unexpected image: %#v", vm.Spec.Template.Spec.Volumes[0].ContainerDisk)
 	}
 	if len(vm.Spec.Template.Spec.Networks) != 1 || vm.Spec.Template.Spec.Networks[0].Pod == nil {
