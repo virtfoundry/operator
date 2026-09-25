@@ -38,6 +38,8 @@ const (
 	powerStateRunning   = "Running"
 	powerStateHalted    = "Halted"
 	defaultContainerImg = "quay.io/kubevirt/cirros-container-disk-demo"
+	osTypeLinux         = "linux"
+	catalogUbuntuImage  = "quay.io/containerdisks/ubuntu:22.04"
 
 	// annotationAllowPodNetwork opts an Instance into the KubeVirt pod network
 	// (masquerade). Production path does not attach it by default — guests must
@@ -74,7 +76,7 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		cpu:        1,
 		memoryMi:   512,
 		image:      defaultContainerImg,
-		osType:     "linux",
+		osType:     osTypeLinux,
 		powerState: instancePowerState(inst),
 	}
 
@@ -110,6 +112,12 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		in.cloudInit = tmpl.Spec.CloudInitUserData
 	}
 
+	// Defense in depth for #22: never copy an unlisted Template.spec.image into
+	// ContainerDisk (webhook / VAP Template allowlist remains a follow-up in #26).
+	if err := validateContainerDiskImage(in.image, r.AllowedContainerImagePrefixes); err != nil {
+		return in, err
+	}
+
 	ifaces, networks, err := r.resolveVMNetworks(ctx, inst)
 	if err != nil {
 		return in, err
@@ -121,7 +129,7 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 }
 
 func (r *InstanceReconciler) resolveTemplate(ctx context.Context, inst *virtfoundryv1alpha1.Instance, name string) (*virtfoundryv1alpha1.Template, error) {
-	namespaces := []string{inst.Namespace, "virtfoundry-system"}
+	namespaces := []string{inst.Namespace, operatorNamespace}
 	for _, ns := range namespaces {
 		tmpl := &virtfoundryv1alpha1.Template{}
 		err := r.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, tmpl)
@@ -132,7 +140,7 @@ func (r *InstanceReconciler) resolveTemplate(ctx context.Context, inst *virtfoun
 			return nil, err
 		}
 	}
-	return nil, fmt.Errorf("template %q not found in %s or virtfoundry-system", name, inst.Namespace)
+	return nil, fmt.Errorf("template %q not found in %s or %s", name, inst.Namespace, operatorNamespace)
 }
 
 // resolveVMNetworks builds guest NICs. Production default: Multus/VPC only.

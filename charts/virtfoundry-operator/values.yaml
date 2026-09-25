@@ -13,6 +13,12 @@ replicas: 1
 
 leaderElection: true
 
+# ContainerDisk image allowlist (issue #22). Empty → built-in
+# quay.io/containerdisks/ + quay.io/kubevirt/. Setting prefixes replaces the
+# built-in list (private registry mirrors).
+imageAllowlist:
+  prefixes: []
+
 # Cluster-side guard rail: denies the operator ServiceAccount any Namespace
 # DELETE outside virtfoundry-tenant-* labelled virtfoundry.io/tenant. Rendered
 # only when the cluster serves ValidatingAdmissionPolicy (Kubernetes >= 1.30).
@@ -22,7 +28,8 @@ namespaceGuard:
 # Cluster-side CR admission (issue #13): Instance only in virtfoundry-tenant-*,
 # Offering CPU/memory bounds. Complements CRD OpenAPI. Tenant slug uniqueness
 # is enforced in the controller (#15/#20); admission-time slug checks wait on
-# webhooks (#26). Residual: webhook + cert-manager + :9443.
+# webhooks (#26). Residual: webhook + cert-manager + :9443; Template CR
+# admission (#26) complements controller ContainerDisk allowlist (#22).
 crAdmission:
   enabled: true
 

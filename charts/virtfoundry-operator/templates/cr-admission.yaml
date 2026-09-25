@@ -7,7 +7,8 @@
 
   Tenant slug uniqueness is controller-enforced (#15/#20); admission-time
   uniqueness waits on validating webhooks (#26). Residual: cert-manager +
-  Helm :9443, Template image allowlist, privileged KubeVirt features.
+  Helm :9443, Template CR admission (#26). ContainerDisk image allowlist is
+  enforced in the Instance reconciler (#22).
 */ -}}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy

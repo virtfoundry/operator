@@ -41,6 +41,9 @@ const instanceRequeue = 30 * time.Second
 type InstanceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// AllowedContainerImagePrefixes optionally replaces the built-in
+	// ContainerDisk allowlist (issue #22). Nil/empty → env or defaults.
+	AllowedContainerImagePrefixes []string
 }
 
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=instances,verbs=get;list;watch;update;patch
