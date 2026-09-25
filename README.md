@@ -15,6 +15,19 @@ that API (adoption / GitOps-friendly layer).
 
 Other kinds (VPC, Network, Disk, Instance create/delete) are defined as CRDs; controllers are planned per [core design spec](https://github.com/virtfoundry/core/blob/main/docs/superpowers/specs/2026-09-01-crd-operator-design.md).
 
+### Tenant namespace safety
+
+The Tenant reconciler only writes to `virtfoundry-tenant-{slug}` namespaces that
+carry `virtfoundry.io/tenant={slug}` and either no controller ownerRef (adopted
+once) or an ownerRef pointing at that Tenant. Anything else — system namespaces,
+unlabelled namespaces, another Tenant's namespace — is refused, and the Tenant
+reports `status.phase: Failed` instead of adopting or deleting it.
+
+The chart adds a matching cluster-side guard: `namespaceGuard.enabled` (default
+`true`) installs a ValidatingAdmissionPolicy that denies the operator
+ServiceAccount any Namespace `DELETE` outside that set. It renders only on
+clusters serving `admissionregistration.k8s.io/v1` policies (Kubernetes >= 1.30).
+
 ## Develop
 
 ```bash
