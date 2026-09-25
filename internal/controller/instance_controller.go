@@ -73,6 +73,17 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
+	if err := assertInstanceTenantNamespace(inst.Namespace); err != nil {
+		inst.Status.KubeVirtName = kvName
+		inst.Status.Phase = virtfoundryv1alpha1.PhaseFailed
+		inst.Status.ErrorMessage = err.Error()
+		if statusErr := r.Status().Update(ctx, inst); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		logger.Error(err, "refuse Instance outside tenant namespace")
+		return ctrl.Result{}, nil
+	}
+
 	if !controllerutil.ContainsFinalizer(inst, instanceFinalizer) {
 		controllerutil.AddFinalizer(inst, instanceFinalizer)
 		if err := r.Update(ctx, inst); err != nil {

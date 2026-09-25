@@ -26,9 +26,15 @@ type OfferingSpec struct {
 	DisplayName string `json:"displayName"`
 
 	// CPU cores allocated to instances using this offering.
+	// Bounds match ValidatingAdmissionPolicy + controller guards (issue #13).
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=256
 	CPU int `json:"cpu"`
 
 	// MemoryMi is memory in mebibytes.
+	// Bounds match ValidatingAdmissionPolicy + controller guards (issue #13).
+	// +kubebuilder:validation:Minimum=64
+	// +kubebuilder:validation:Maximum=1048576
 	MemoryMi int64 `json:"memoryMi"`
 
 	// DedicatedCPU pins vCPU threads to host cores.

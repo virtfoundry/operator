@@ -19,13 +19,16 @@ func TestBuildVirtualMachine_Running(t *testing.T) {
 			PowerState:  powerStateRunning,
 		},
 	}
-	vm := buildVirtualMachine(inst, testVMName, vmBuildInput{
+	vm, err := buildVirtualMachine(inst, testVMName, vmBuildInput{
 		cpu:        1,
 		memoryMi:   1024,
 		image:      "quay.io/containerdisks/ubuntu:22.04",
 		osType:     "linux",
 		powerState: powerStateRunning,
 	})
+	if err != nil {
+		t.Fatalf("buildVirtualMachine: %v", err)
+	}
 
 	if vm.Name != testVMName {
 		t.Fatalf("name: got %q", vm.Name)
@@ -40,11 +43,30 @@ func TestBuildVirtualMachine_Running(t *testing.T) {
 
 func TestBuildVirtualMachine_Halted(t *testing.T) {
 	inst := &virtfoundryv1alpha1.Instance{
-		ObjectMeta: metav1.ObjectMeta{Name: testVMName, Namespace: "ns"},
+		ObjectMeta: metav1.ObjectMeta{Name: testVMName, Namespace: "virtfoundry-tenant-acme"},
 	}
-	vm := buildVirtualMachine(inst, testVMName, vmBuildInput{powerState: powerStateHalted})
+	vm, err := buildVirtualMachine(inst, testVMName, vmBuildInput{
+		cpu:        1,
+		memoryMi:   512,
+		powerState: powerStateHalted,
+	})
+	if err != nil {
+		t.Fatalf("buildVirtualMachine: %v", err)
+	}
 	if vm.Spec.RunStrategy == nil || *vm.Spec.RunStrategy != kubevirtv1.RunStrategyHalted {
 		t.Fatalf("expected RunStrategyHalted, got %#v", vm.Spec.RunStrategy)
+	}
+}
+
+func TestBuildVirtualMachine_RejectsInvalidResources(t *testing.T) {
+	inst := &virtfoundryv1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{Name: testVMName, Namespace: "virtfoundry-tenant-acme"},
+	}
+	if _, err := buildVirtualMachine(inst, testVMName, vmBuildInput{cpu: -1, memoryMi: 512}); err == nil {
+		t.Fatal("expected error for negative cpu")
+	}
+	if _, err := buildVirtualMachine(inst, testVMName, vmBuildInput{cpu: 1, memoryMi: 0}); err == nil {
+		t.Fatal("expected error for zero memory")
 	}
 }
 

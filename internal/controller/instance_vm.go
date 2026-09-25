@@ -73,12 +73,11 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		if err := r.Get(ctx, client.ObjectKey{Name: inst.Spec.OfferingRef.Name}, off); err != nil {
 			return in, fmt.Errorf("offering %q: %w", inst.Spec.OfferingRef.Name, err)
 		}
-		if off.Spec.CPU > 0 {
-			in.cpu = off.Spec.CPU
+		if err := validateResolvedOffering(off); err != nil {
+			return in, fmt.Errorf("offering %q: %w", off.Name, err)
 		}
-		if off.Spec.MemoryMi > 0 {
-			in.memoryMi = off.Spec.MemoryMi
-		}
+		in.cpu = off.Spec.CPU
+		in.memoryMi = off.Spec.MemoryMi
 		in.dedicatedCPU = off.Spec.DedicatedCPU || inst.Spec.DedicatedCPU
 	} else {
 		in.dedicatedCPU = inst.Spec.DedicatedCPU
@@ -125,7 +124,10 @@ func (r *InstanceReconciler) ensureVirtualMachine(ctx context.Context, inst *vir
 		return err
 	}
 
-	desired := buildVirtualMachine(inst, kvName, input)
+	desired, err := buildVirtualMachine(inst, kvName, input)
+	if err != nil {
+		return err
+	}
 	vm := &kubevirtv1.VirtualMachine{}
 	vm.Name = kvName
 	vm.Namespace = inst.Namespace
@@ -155,7 +157,7 @@ func (r *InstanceReconciler) deleteVirtualMachine(ctx context.Context, namespace
 	return r.Delete(ctx, vm)
 }
 
-func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in vmBuildInput) *kubevirtv1.VirtualMachine {
+func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in vmBuildInput) (*kubevirtv1.VirtualMachine, error) {
 	runStrategy := kubevirtv1.RunStrategyAlways
 	if in.powerState == powerStateHalted {
 		runStrategy = kubevirtv1.RunStrategyHalted
@@ -174,11 +176,20 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 		},
 	}}
 
+	cpu, err := guestCPUSpec(in.cpu, in.dedicatedCPU)
+	if err != nil {
+		return nil, err
+	}
+	resources, err := vmResourceRequirements(in.memoryMi, in.cpu, in.dedicatedCPU)
+	if err != nil {
+		return nil, err
+	}
+
 	vmiSpec := kubevirtv1.VirtualMachineInstanceSpec{
 		Domain: kubevirtv1.DomainSpec{
-			CPU:       guestCPUSpec(in.cpu, in.dedicatedCPU),
+			CPU:       cpu,
 			Devices:   kubevirtv1.Devices{Disks: linuxDisks(), Interfaces: ifaces},
-			Resources: vmResourceRequirements(in.memoryMi, in.cpu, in.dedicatedCPU),
+			Resources: resources,
 		},
 		Volumes:  linuxVolumes(in.image, in.cloudInit),
 		Networks: networks,
@@ -206,7 +217,7 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 				Spec: vmiSpec,
 			},
 		},
-	}
+	}, nil
 }
 
 func linuxDisks() []kubevirtv1.Disk {
@@ -237,22 +248,34 @@ func linuxVolumes(image, cloudInit string) []kubevirtv1.Volume {
 	}
 }
 
-func guestCPUSpec(cores int, dedicated bool) *kubevirtv1.CPU {
+func guestCPUSpec(cores int, dedicated bool) (*kubevirtv1.CPU, error) {
+	if err := validateGuestResources(cores, 64); err != nil {
+		return nil, err
+	}
 	cpu := &kubevirtv1.CPU{Cores: uint32(cores)}
 	if dedicated {
 		cpu.DedicatedCPUPlacement = true
 	}
-	return cpu
+	return cpu, nil
 }
 
-func vmResourceRequirements(memMi int64, cpu int, dedicated bool) kubevirtv1.ResourceRequirements {
-	mem := resource.MustParse(fmt.Sprintf("%dMi", memMi))
+func vmResourceRequirements(memMi int64, cpu int, dedicated bool) (kubevirtv1.ResourceRequirements, error) {
+	if err := validateGuestResources(cpu, memMi); err != nil {
+		return kubevirtv1.ResourceRequirements{}, err
+	}
+	mem, err := resource.ParseQuantity(fmt.Sprintf("%dMi", memMi))
+	if err != nil {
+		return kubevirtv1.ResourceRequirements{}, fmt.Errorf("parse memory %dMi: %w", memMi, err)
+	}
 	reqs := corev1.ResourceList{corev1.ResourceMemory: mem}
 	limits := corev1.ResourceList{corev1.ResourceMemory: mem}
 	if dedicated {
-		cpuQty := resource.MustParse(fmt.Sprintf("%d", cpu))
+		cpuQty, err := resource.ParseQuantity(fmt.Sprintf("%d", cpu))
+		if err != nil {
+			return kubevirtv1.ResourceRequirements{}, fmt.Errorf("parse cpu %d: %w", cpu, err)
+		}
 		reqs[corev1.ResourceCPU] = cpuQty
 		limits[corev1.ResourceCPU] = cpuQty
 	}
-	return kubevirtv1.ResourceRequirements{Requests: reqs, Limits: limits}
+	return kubevirtv1.ResourceRequirements{Requests: reqs, Limits: limits}, nil
 }
