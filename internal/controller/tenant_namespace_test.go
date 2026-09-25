@@ -117,12 +117,45 @@ func TestAssertTenantNamespaceOwnedRefusesForeignTenantLabel(t *testing.T) {
 }
 
 func TestAssertTenantNamespaceOwnedRefusesNamespaceOfAnotherTenant(t *testing.T) {
-	// Two Tenants may declare the same slug; only the owner may delete it.
+	// Two Tenants may declare the same slug; only the owner may manage it.
 	owner := tenantFixture("acme", "acme", "uid-acme")
 	squatter := tenantFixture("acme-copy", "acme", "uid-acme-copy")
 	err := assertTenantNamespaceOwned(ownedNamespaceFixture(owner), squatter)
 	if !errors.Is(err, errNamespaceNotOwned) {
 		t.Fatalf("assertTenantNamespaceOwned(other tenant) = %v, want errNamespaceNotOwned", err)
+	}
+}
+
+func TestAssertTenantNamespaceDeletableRequiresOwnerRef(t *testing.T) {
+	tenant := tenantFixture("acme", "acme", "uid-acme")
+	legacy := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: tenantNamespaceName("acme"),
+			Labels: map[string]string{
+				labelPartOf: partOfVirtFoundry,
+				labelTenant: "acme",
+			},
+		},
+	}
+	err := assertTenantNamespaceDeletable(legacy, tenant)
+	if !errors.Is(err, errNamespaceNotOwned) {
+		t.Fatalf("assertTenantNamespaceDeletable(legacy) = %v, want errNamespaceNotOwned", err)
+	}
+}
+
+func TestAssertTenantNamespaceDeletableAcceptsOwnedNamespace(t *testing.T) {
+	tenant := tenantFixture("acme", "acme", "uid-acme")
+	if err := assertTenantNamespaceDeletable(ownedNamespaceFixture(tenant), tenant); err != nil {
+		t.Fatalf("assertTenantNamespaceDeletable: %v", err)
+	}
+}
+
+func TestAssertTenantNamespaceDeletableRefusesForeignOwner(t *testing.T) {
+	owner := tenantFixture("acme", "acme", "uid-acme")
+	squatter := tenantFixture("acme-copy", "acme", "uid-acme-copy")
+	err := assertTenantNamespaceDeletable(ownedNamespaceFixture(owner), squatter)
+	if !errors.Is(err, errNamespaceNotOwned) {
+		t.Fatalf("assertTenantNamespaceDeletable(other tenant) = %v, want errNamespaceNotOwned", err)
 	}
 }
 
