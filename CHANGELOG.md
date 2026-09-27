@@ -32,37 +32,30 @@ Security release: tenant isolation, ContainerDisk image allowlist, CR admission 
 - Instance reconcile refuses namespaces that are not labelled VirtFoundry tenants
 - Instance reconcile refuses Template images outside the ContainerDisk allowlist
   (HTTP(S) URLs must use the ISO/CDI path)
+
 ## [0.7.1] - 2026-09-04
 
 ### Changed
 
 - Chart and default image tag aligned with VirtFoundry `0.7.1` (no functional operator changes)
 
-[0.7.2]: https://github.com/virtfoundry/operator/compare/v0.7.1...v0.7.2
-
-[0.7.1]: https://github.com/virtfoundry/operator/releases/tag/v0.7.1
-
 ## [0.7.0] - 2026-09-02
 
-### Changed
-
-- Chart and default image tag aligned with VirtFoundry `0.7.0` (no functional operator changes)
-
-[0.7.0]: https://github.com/virtfoundry/operator/releases/tag/v0.7.0
-
-## [0.6.0] - 2026-09-01
+First tagged operator release (no separate `v0.6.0` tag was ever published).
 
 ### Added
 
-- Initial public release aligned with VirtFoundry `0.6.0`
 - `virtfoundry.io/v1alpha1` CRDs (Tenant, Instance, VPC, Network, Disk, IAM, …)
 - **Tenant** controller — tenant namespace reconciliation
 - **Instance** controller — KubeVirt VM status sync to Instance CR status
-- Helm chart `charts/virtfoundry-operator` (`ghcr.io/virtfoundry/operator:0.6.0`)
+- Helm chart packaging via [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts) (`ghcr.io/virtfoundry/operator:0.7.0`)
 
-### Known gaps (0.7+)
+### Known gaps (post-0.7.0)
 
 - Full infra controllers (VPC, Network, Disk, Instance create/delete)
 - CI image publish + digest write-back to homelab Argo values
 
-[0.6.0]: https://github.com/virtfoundry/operator/releases/tag/v0.6.0
+[0.7.3]: https://github.com/virtfoundry/operator/compare/v0.7.2...v0.7.3
+[0.7.2]: https://github.com/virtfoundry/operator/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/virtfoundry/operator/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/virtfoundry/operator/releases/tag/v0.7.0
