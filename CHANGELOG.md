@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-28
+
+### Changed
+
+- Release alignment with core/helm-charts **0.8.0** (no operator functional change).
+
 ## [0.7.3] - 2026-09-25
 
 ### Changed
