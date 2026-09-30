@@ -20,7 +20,7 @@ rules:
     resources: ["instances"]
     verbs: ["get", "list", "watch", "update", "patch"]
   - apiGroups: ["virtfoundry.io"]
-    resources: ["offerings", "templates", "networks"]
+    resources: ["offerings", "templates", "networks", "sshkeys"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["k8s.cni.cncf.io"]
     resources: ["network-attachment-definitions"]

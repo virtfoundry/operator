@@ -129,6 +129,18 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		return in, err
 	}
 
+	pubKeys, err := r.resolveSSHPublicKeys(ctx, inst)
+	if err != nil {
+		return in, err
+	}
+	if len(pubKeys) > 0 {
+		merged, err := mergeCloudInitWithSSHKeys(in.cloudInit, pubKeys)
+		if err != nil {
+			return in, err
+		}
+		in.cloudInit = merged
+	}
+
 	ifaces, networks, err := r.resolveVMNetworks(ctx, inst)
 	if err != nil {
 		return in, err

@@ -26,14 +26,13 @@ FORBIDDEN_PATTERNS=(
   'disks'
   'disksnapshots'
   'instancesnapshots'
-  'sshkeys'
   'ipaddresses'
 )
 
 REQUIRED_SNIPPETS=(
   'resources: \["tenants"\]'
   'resources: \["instances"\]'
-  'resources: \["offerings", "templates", "networks"\]'
+  'resources: \["offerings", "templates", "networks", "sshkeys"\]'
   'networks/status'
   'resources: \["network-attachment-definitions"\]'
   'resources: \["namespaces"\]'

@@ -96,6 +96,7 @@ rules:
   resources:
   - networks
   - offerings
+  - sshkeys
   - templates
   verbs:
   - get
