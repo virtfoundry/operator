@@ -28,6 +28,11 @@ import (
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
 )
 
+const (
+	testSSHKeyName   = "laptop"
+	testSSHPublicKey = "ssh-ed25519 AAAA laptop"
+)
+
 func TestMergeCloudInitWithSSHKeys(t *testing.T) {
 	got, err := mergeCloudInitWithSSHKeys("#cloud-config\npackages:\n  - curl\n", []string{
 		"ssh-ed25519 AAAA demo@vf",
@@ -64,8 +69,8 @@ func TestResolveSSHPublicKeys(t *testing.T) {
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 
 	key := &virtfoundryv1alpha1.SSHKey{
-		ObjectMeta: metav1.ObjectMeta{Name: "laptop", Namespace: testTenantNS},
-		Spec:       virtfoundryv1alpha1.SSHKeySpec{PublicKey: "ssh-ed25519 AAAA laptop"},
+		ObjectMeta: metav1.ObjectMeta{Name: testSSHKeyName, Namespace: testTenantNS},
+		Spec:       virtfoundryv1alpha1.SSHKeySpec{PublicKey: testSSHPublicKey},
 	}
 	r := &InstanceReconciler{
 		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(key).Build(),
@@ -73,14 +78,14 @@ func TestResolveSSHPublicKeys(t *testing.T) {
 	inst := &virtfoundryv1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{Name: testVMName, Namespace: testTenantNS},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
-			SSHKeyRefs: []virtfoundryv1alpha1.LocalObjectRef{{Name: "laptop"}},
+			SSHKeyRefs: []virtfoundryv1alpha1.LocalObjectRef{{Name: testSSHKeyName}},
 		},
 	}
 	got, err := r.resolveSSHPublicKeys(context.Background(), inst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0] != "ssh-ed25519 AAAA laptop" {
+	if len(got) != 1 || got[0] != testSSHPublicKey {
 		t.Fatalf("got %#v", got)
 	}
 }
@@ -114,8 +119,8 @@ func TestResolveVMBuildInput_MergesSSHKeyRefs(t *testing.T) {
 		},
 	}
 	key := &virtfoundryv1alpha1.SSHKey{
-		ObjectMeta: metav1.ObjectMeta{Name: "laptop", Namespace: testTenantNS},
-		Spec:       virtfoundryv1alpha1.SSHKeySpec{PublicKey: "ssh-ed25519 AAAA laptop"},
+		ObjectMeta: metav1.ObjectMeta{Name: testSSHKeyName, Namespace: testTenantNS},
+		Spec:       virtfoundryv1alpha1.SSHKeySpec{PublicKey: testSSHPublicKey},
 	}
 	r := &InstanceReconciler{
 		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(tmpl, key).Build(),
@@ -131,7 +136,7 @@ func TestResolveVMBuildInput_MergesSSHKeyRefs(t *testing.T) {
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName: testVMName,
 			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu"},
-			SSHKeyRefs:  []virtfoundryv1alpha1.LocalObjectRef{{Name: "laptop"}},
+			SSHKeyRefs:  []virtfoundryv1alpha1.LocalObjectRef{{Name: testSSHKeyName}},
 		},
 	}
 
@@ -139,7 +144,7 @@ func TestResolveVMBuildInput_MergesSSHKeyRefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(in.cloudInit, "ssh-ed25519 AAAA laptop") {
+	if !strings.Contains(in.cloudInit, testSSHPublicKey) {
 		t.Fatalf("cloud-init missing key: %s", in.cloudInit)
 	}
 	if !strings.Contains(in.cloudInit, "timezone: UTC") {
