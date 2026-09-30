@@ -39,3 +39,6 @@ kubectl get vm -n virtfoundry-tenant-default  # VM should be gone
 - Guests do **not** attach the KubeVirt pod network by default. This sample
   opts in via `virtfoundry.io/allow-pod-network=true`. Production Instances
   should set `spec.nics` to Networks that publish Multus NAD names in status.
+- After create, edits to `spec.nics`, `spec.templateRef`, and cloud-init fields
+  reconverge the KubeVirt VM (issue #37). Offering size / `dedicatedCPU` do not
+  yet update an existing VM.

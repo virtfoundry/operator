@@ -76,6 +76,23 @@ vs ≤0.7). ContainerDisk images must match the allowlist (`quay.io/containerdis
 `VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` Offering gates
 remain a follow-up.
 
+### Instance → VirtualMachine CreateOrUpdate (issue #37)
+
+On existing VMs the reconciler converges:
+
+| Instance field | KubeVirt target |
+|----------------|-----------------|
+| `powerState` | `spec.runStrategy` |
+| `nics` (+ Network status NAD) | `template.spec.networks` + `domain.devices.interfaces` |
+| `templateRef` / Template image | managed `containerdisk` volume image |
+| `cloudInitUserData` / Template userdata + `sshKeyRefs` | managed `cloudinitdisk` userdata |
+
+Managed volumes (`containerdisk`, `cloudinitdisk`) are replaced by name; foreign
+volumes (e.g. future PVC disks) are preserved and managed orphans are dropped.
+
+**Still create-time only (not converged on update):** Offering CPU/memory
+requests, `dedicatedCPU` domain placement, and full VMI template label rewrite.
+
 ## Develop
 
 ```bash
