@@ -50,6 +50,11 @@ type InstanceSpec struct {
 	// +optional
 	SSHKeyRefs []LocalObjectRef `json:"sshKeyRefs,omitempty"`
 
+	// CloudInitUserData is optional guest cloud-init user-data.
+	// When non-empty, it overrides Template.spec.cloudInitUserData; sshKeyRefs still merge on top.
+	// +optional
+	CloudInitUserData string `json:"cloudInitUserData,omitempty"`
+
 	// DedicatedCPU pins vCPU threads to host cores.
 	// +optional
 	DedicatedCPU bool `json:"dedicatedCPU,omitempty"`
