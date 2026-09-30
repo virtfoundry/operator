@@ -121,7 +121,11 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 	if tmpl.Spec.OSType != "" {
 		in.osType = tmpl.Spec.OSType
 	}
+	// Instance.spec.cloudInitUserData wins when set; otherwise Template userdata.
 	in.cloudInit = tmpl.Spec.CloudInitUserData
+	if strings.TrimSpace(inst.Spec.CloudInitUserData) != "" {
+		in.cloudInit = inst.Spec.CloudInitUserData
+	}
 
 	// Defense in depth for #22: never copy an unlisted Template.spec.image into
 	// ContainerDisk (webhook / VAP Template allowlist remains a follow-up in #26).
