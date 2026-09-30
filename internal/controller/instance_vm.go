@@ -33,10 +33,10 @@ import (
 )
 
 const (
-	instanceFinalizer  = "virtfoundry.io/finalizer"
-	instanceManagedBy  = "virtfoundry"
-	powerStateRunning  = "Running"
-	powerStateHalted   = "Halted"
+	instanceFinalizer   = "virtfoundry.io/finalizer"
+	instanceManagedBy   = "virtfoundry"
+	powerStateRunning   = "Running"
+	powerStateHalted    = "Halted"
 	osTypeLinux         = "linux"
 	sourceTypeContainer = "container"
 	catalogUbuntuImage  = "quay.io/containerdisks/ubuntu:22.04"
