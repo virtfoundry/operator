@@ -116,7 +116,7 @@ func TestResolveVMBuildInput_MergesSSHKeyRefs(t *testing.T) {
 			Image:             catalogUbuntuImage,
 			OSType:            osTypeLinux,
 			SourceType:        sourceTypeContainer,
-			CloudInitUserData: "#cloud-config\ntimezone: UTC\n",
+			CloudInitUserData: testTemplateCloudInit,
 		},
 	}
 	key := &virtfoundryv1alpha1.SSHKey{

@@ -49,7 +49,7 @@ func TestResolveCloudInitUserData_TemplateSecretPrefersOverLegacy(t *testing.T) 
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:             catalogUbuntuImage,
 			SourceType:        sourceTypeContainer,
-			CloudInitUserData: "#cloud-config\ntimezone: UTC\n",
+			CloudInitUserData: testTemplateCloudInit,
 			CloudInitSecretRef: &virtfoundryv1alpha1.SecretKeyRef{
 				Name: testCloudInitSecretName,
 			},
@@ -134,7 +134,7 @@ func TestResolveCloudInitUserData_LegacyStringStillWorks(t *testing.T) {
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:             catalogUbuntuImage,
 			SourceType:        sourceTypeContainer,
-			CloudInitUserData: "#cloud-config\ntimezone: UTC\n",
+			CloudInitUserData: testTemplateCloudInit,
 		},
 	}
 	inst := &virtfoundryv1alpha1.Instance{
