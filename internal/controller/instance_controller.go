@@ -52,6 +52,7 @@ type InstanceReconciler struct {
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=offerings,verbs=get;list;watch
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=templates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=networks,verbs=get;list;watch
+// +kubebuilder:rbac:groups=virtfoundry.io,resources=sshkeys,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines;virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 
