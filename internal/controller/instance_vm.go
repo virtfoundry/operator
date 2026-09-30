@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -309,9 +310,7 @@ func applyDesiredVMOnUpdate(vm, desired *kubevirtv1.VirtualMachine) {
 		if vm.Labels == nil {
 			vm.Labels = map[string]string{}
 		}
-		for k, v := range desired.Labels {
-			vm.Labels[k] = v
-		}
+		maps.Copy(vm.Labels, desired.Labels)
 	}
 	if desired.Spec.Template == nil {
 		return

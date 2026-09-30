@@ -19,6 +19,10 @@ const (
 	testVMName   = "demo"
 	testTenantNS = "virtfoundry-tenant-default"
 	testVPCNet   = "vpc-net"
+	testNICEth0  = "eth0"
+	testNICEth1  = "eth1"
+	testNICOld0  = "old0"
+	testDataDisk = "datadisk"
 )
 
 func TestBuildVirtualMachine_RunningWithPodNetworkOptIn(t *testing.T) {
@@ -141,7 +145,7 @@ func TestResolveVMNetworks_MultusFromNetworkStatus(t *testing.T) {
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName: testVMName,
 			Nics: []virtfoundryv1alpha1.InstanceNicSpec{{
-				Name:       "eth0",
+				Name:       testNICEth0,
 				NetworkRef: virtfoundryv1alpha1.LocalObjectRef{Name: testVPCNet},
 			}},
 		},
@@ -311,7 +315,7 @@ func TestMergeManagedVolumes_UpdatesImageDropsOrphanPreservesForeign(t *testing.
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{UserData: "old"},
 			},
 		},
-		{Name: "datadisk"}, // non-managed — keep
+		{Name: testDataDisk}, // non-managed — keep
 	}
 	desired := linuxVolumes(catalogUbuntuImage, "#cloud-config\npackages: [nginx]\n")
 
@@ -330,7 +334,7 @@ func TestMergeManagedVolumes_UpdatesImageDropsOrphanPreservesForeign(t *testing.
 		!strings.Contains(byName[volumeCloudInitDisk].CloudInitNoCloud.UserData, "nginx") {
 		t.Fatalf("cloudinit not updated: %#v", byName[volumeCloudInitDisk])
 	}
-	if _, ok := byName["datadisk"]; !ok {
+	if _, ok := byName[testDataDisk]; !ok {
 		t.Fatal("foreign volume datadisk was dropped")
 	}
 }
@@ -352,7 +356,7 @@ func TestApplyDesiredVMOnUpdate_ConvergesNicsAndImage(t *testing.T) {
 						Devices: kubevirtv1.Devices{
 							Disks: linuxDisks(),
 							Interfaces: []kubevirtv1.Interface{{
-								Name: "old0",
+								Name: testNICOld0,
 								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 									Bridge: &kubevirtv1.InterfaceBridge{},
 								},
@@ -360,12 +364,12 @@ func TestApplyDesiredVMOnUpdate_ConvergesNicsAndImage(t *testing.T) {
 						},
 					},
 					Networks: []kubevirtv1.Network{{
-						Name: "old0",
+						Name: testNICOld0,
 						NetworkSource: kubevirtv1.NetworkSource{
 							Multus: &kubevirtv1.MultusNetwork{NetworkName: "old-nad"},
 						},
 					}},
-					Volumes: append(linuxVolumes("old-image", "old-ci"), kubevirtv1.Volume{Name: "datadisk"}),
+					Volumes: append(linuxVolumes("old-image", "old-ci"), kubevirtv1.Volume{Name: testDataDisk}),
 				},
 			},
 		},
@@ -382,7 +386,7 @@ func TestApplyDesiredVMOnUpdate_ConvergesNicsAndImage(t *testing.T) {
 						Devices: kubevirtv1.Devices{
 							Disks: linuxDisks(),
 							Interfaces: []kubevirtv1.Interface{{
-								Name: "eth0",
+								Name: testNICEth0,
 								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 									Bridge: &kubevirtv1.InterfaceBridge{},
 								},
@@ -390,7 +394,7 @@ func TestApplyDesiredVMOnUpdate_ConvergesNicsAndImage(t *testing.T) {
 						},
 					},
 					Networks: []kubevirtv1.Network{{
-						Name: "eth0",
+						Name: testNICEth0,
 						NetworkSource: kubevirtv1.NetworkSource{
 							Multus: &kubevirtv1.MultusNetwork{NetworkName: "new-nad"},
 						},
@@ -407,13 +411,13 @@ func TestApplyDesiredVMOnUpdate_ConvergesNicsAndImage(t *testing.T) {
 		t.Fatalf("RunStrategy not converged: %#v", vm.Spec.RunStrategy)
 	}
 	if len(vm.Spec.Template.Spec.Networks) != 1 ||
-		vm.Spec.Template.Spec.Networks[0].Name != "eth0" ||
+		vm.Spec.Template.Spec.Networks[0].Name != testNICEth0 ||
 		vm.Spec.Template.Spec.Networks[0].Multus == nil ||
 		vm.Spec.Template.Spec.Networks[0].Multus.NetworkName != "new-nad" {
 		t.Fatalf("networks not converged: %#v", vm.Spec.Template.Spec.Networks)
 	}
 	if len(vm.Spec.Template.Spec.Domain.Devices.Interfaces) != 1 ||
-		vm.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name != "eth0" {
+		vm.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name != testNICEth0 {
 		t.Fatalf("interfaces not converged: %#v", vm.Spec.Template.Spec.Domain.Devices.Interfaces)
 	}
 	foundData := false
@@ -423,9 +427,9 @@ func TestApplyDesiredVMOnUpdate_ConvergesNicsAndImage(t *testing.T) {
 			if v.ContainerDisk == nil || v.ContainerDisk.Image != catalogUbuntuImage {
 				t.Fatalf("image not converged: %#v", v)
 			}
-		case "datadisk":
+		case testDataDisk:
 			foundData = true
-		case "old0":
+		case testNICOld0:
 			t.Fatal("orphan managed network volume should not appear in volumes")
 		}
 	}
@@ -468,7 +472,7 @@ func TestEnsureVirtualMachine_UpdatesNicsOnExistingVM(t *testing.T) {
 						Devices: kubevirtv1.Devices{
 							Disks: linuxDisks(),
 							Interfaces: []kubevirtv1.Interface{{
-								Name: "eth0",
+								Name: testNICEth0,
 								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 									Bridge: &kubevirtv1.InterfaceBridge{},
 								},
@@ -476,7 +480,7 @@ func TestEnsureVirtualMachine_UpdatesNicsOnExistingVM(t *testing.T) {
 						},
 					},
 					Networks: []kubevirtv1.Network{{
-						Name: "eth0",
+						Name: testNICEth0,
 						NetworkSource: kubevirtv1.NetworkSource{
 							Multus: &kubevirtv1.MultusNetwork{NetworkName: "net-a-nad"},
 						},
@@ -496,7 +500,7 @@ func TestEnsureVirtualMachine_UpdatesNicsOnExistingVM(t *testing.T) {
 			DisplayName: testVMName,
 			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateName},
 			Nics: []virtfoundryv1alpha1.InstanceNicSpec{{
-				Name:       "eth1",
+				Name:       testNICEth1,
 				NetworkRef: virtfoundryv1alpha1.LocalObjectRef{Name: "net-b"},
 			}},
 		},
@@ -511,13 +515,13 @@ func TestEnsureVirtualMachine_UpdatesNicsOnExistingVM(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got.Spec.Template.Spec.Networks) != 1 ||
-		got.Spec.Template.Spec.Networks[0].Name != "eth1" ||
+		got.Spec.Template.Spec.Networks[0].Name != testNICEth1 ||
 		got.Spec.Template.Spec.Networks[0].Multus == nil ||
 		got.Spec.Template.Spec.Networks[0].Multus.NetworkName != "net-b-nad" {
 		t.Fatalf("NIC not converged on existing VM: %#v", got.Spec.Template.Spec.Networks)
 	}
 	if len(got.Spec.Template.Spec.Domain.Devices.Interfaces) != 1 ||
-		got.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name != "eth1" {
+		got.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name != testNICEth1 {
 		t.Fatalf("iface not converged: %#v", got.Spec.Template.Spec.Domain.Devices.Interfaces)
 	}
 }
@@ -561,7 +565,7 @@ func TestEnsureVirtualMachine_UpdatesImageWithoutOrphanVolumes(t *testing.T) {
 					Networks: mustPodNetworks(t),
 					Volumes: append(
 						linuxVolumes("quay.io/containerdisks/ubuntu:20.04", "stale"),
-						kubevirtv1.Volume{Name: "datadisk"},
+						kubevirtv1.Volume{Name: testDataDisk},
 					),
 				},
 			},
@@ -607,7 +611,7 @@ func TestEnsureVirtualMachine_UpdatesImageWithoutOrphanVolumes(t *testing.T) {
 		!strings.Contains(byName[volumeCloudInitDisk].CloudInitNoCloud.UserData, "curl") {
 		t.Fatalf("cloud-init not updated from TemplateRef: %#v", byName[volumeCloudInitDisk])
 	}
-	if _, ok := byName["datadisk"]; !ok {
+	if _, ok := byName[testDataDisk]; !ok {
 		t.Fatal("foreign datadisk orphaned")
 	}
 }
