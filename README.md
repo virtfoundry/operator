@@ -85,7 +85,7 @@ On existing VMs the reconciler converges:
 | `powerState` | `spec.runStrategy` |
 | `nics` (+ Network status NAD) | `template.spec.networks` + `domain.devices.interfaces` |
 | `templateRef` / Template image | managed `containerdisk` volume image |
-| `cloudInitUserData` / Template userdata + `sshKeyRefs` | managed `cloudinitdisk` userdata |
+| `cloudInitSecretRef` / legacy `cloudInitUserData` + Template + `sshKeyRefs` | managed `cloudinitdisk` userdata (Secret preferred) |
 
 Managed volumes (`containerdisk`, `cloudinitdisk`) are replaced by name; foreign
 volumes (e.g. future PVC disks) are preserved and managed orphans are dropped.

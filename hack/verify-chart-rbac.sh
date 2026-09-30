@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails if the rendered operator ClusterRole drifts from Tenant+Instance+Network
-# needs (kubebuilder config/rbac/role.yaml), regains cluster-wide Secret access,
+# needs (kubebuilder config/rbac/role.yaml), regains Secret mutate verbs,
 # or if admission guards stop rendering on capable clusters.
 #
 # Keep in sync with virtfoundry/helm-charts scripts/ci/verify-operator-chart-rbac.sh.
@@ -12,7 +12,6 @@ VAP_API="admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy"
 # API groups / resource names that belong to future controllers, not the
 # currently shipped Tenant / Instance / Network reconcile surface.
 FORBIDDEN_PATTERNS=(
-  'secrets'
   'persistentvolumeclaims'
   'volumesnapshots'
   'virtualmachinesnapshots'
@@ -39,6 +38,7 @@ REQUIRED_SNIPPETS=(
   'resources: \["resourcequotas", "limitranges"\]'
   'resources: \["networkpolicies"\]'
   'resources: \["virtualmachines", "virtualmachineinstances"\]'
+  'resources: \["secrets"\]'
 )
 
 if ! command -v helm >/dev/null 2>&1; then
@@ -46,7 +46,7 @@ if ! command -v helm >/dev/null 2>&1; then
   exit 1
 fi
 
-# Comments are dropped so documentation mentioning secrets does not trip the check.
+# Comments are dropped so documentation mentioning forbidden resources does not trip the check.
 rbac="$(helm template virtfoundry-operator "$CHART_DIR" -s templates/rbac.yaml | sed 's/[[:space:]]*#.*$//')"
 
 for pat in "${FORBIDDEN_PATTERNS[@]}"; do
@@ -64,7 +64,19 @@ for snip in "${REQUIRED_SNIPPETS[@]}"; do
     exit 1
   fi
 done
-echo "OK: rendered ClusterRole covers Tenant + Instance + Network NAD (+ KubeVirt VMs/VMIs)"
+echo "OK: rendered ClusterRole covers Tenant + Instance + Network NAD (+ KubeVirt VMs/VMIs) + Secrets read"
+
+# Secrets must be read-only (cloudInitSecretRef, operator#16). Mutate stays forbidden.
+secrets_block="$(awk '/resources: \["secrets"\]/{flag=1; next} flag && /resources:/{exit} flag' <<<"$rbac")"
+secrets_verbs="$(grep 'verbs:' <<<"$secrets_block" || true)"
+[[ -n "$secrets_verbs" ]] || { echo "FAIL: could not find secrets verbs" >&2; exit 1; }
+for bad in create update patch delete deletecollection; do
+  if grep -qw "$bad" <<<"$secrets_verbs"; then
+    echo "FAIL: secrets rule must be read-only, found verb '$bad' ($secrets_verbs)" >&2
+    exit 1
+  fi
+done
+echo "OK: secrets ClusterRole verbs are read-only (get/list/watch)"
 
 # The ClusterRole cannot be scoped by resourceNames (tenant namespaces are
 # virtfoundry-tenant-{slug}), so at least keep `update` off namespaces.

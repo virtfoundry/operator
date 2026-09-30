@@ -50,8 +50,16 @@ type InstanceSpec struct {
 	// +optional
 	SSHKeyRefs []LocalObjectRef `json:"sshKeyRefs,omitempty"`
 
-	// CloudInitUserData is optional guest cloud-init user-data.
-	// When non-empty, it overrides Template.spec.cloudInitUserData; sshKeyRefs still merge on top.
+	// CloudInitSecretRef points at a Secret holding cloud-init user-data
+	// (default key: userData) in the Instance namespace. When set, it overrides
+	// Template cloud-init (secret or legacy string); sshKeyRefs still merge on top.
+	// +optional
+	CloudInitSecretRef *SecretKeyRef `json:"cloudInitSecretRef,omitempty"`
+
+	// CloudInitUserData is optional inline guest cloud-init user-data.
+	// When non-empty and CloudInitSecretRef is unset, it overrides Template
+	// cloud-init; sshKeyRefs still merge on top.
+	// Prefer CloudInitSecretRef so passwords are not stored on the Instance CR.
 	// +optional
 	CloudInitUserData string `json:"cloudInitUserData,omitempty"`
 

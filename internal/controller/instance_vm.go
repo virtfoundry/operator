@@ -132,11 +132,13 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 	if tmpl.Spec.OSType != "" {
 		in.osType = tmpl.Spec.OSType
 	}
-	// Instance.spec.cloudInitUserData wins when set; otherwise Template userdata.
-	in.cloudInit = tmpl.Spec.CloudInitUserData
-	if strings.TrimSpace(inst.Spec.CloudInitUserData) != "" {
-		in.cloudInit = inst.Spec.CloudInitUserData
+	// Resolve cloud-init: Instance secret/string wins; else Template secret/legacy.
+	// Never log the resolved body (operator#16).
+	cloudInit, err := r.resolveCloudInitUserData(ctx, inst, tmpl)
+	if err != nil {
+		return in, err
 	}
+	in.cloudInit = cloudInit
 
 	// Defense in depth for #22: never copy an unlisted Template.spec.image into
 	// ContainerDisk (webhook / VAP Template allowlist remains a follow-up in #26).
