@@ -74,7 +74,7 @@ func TestResolveVMBuildInput_RejectsDisallowedTemplateImage(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "evil", Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      "evil.example.com/pwn:latest",
-			SourceType: "container",
+			SourceType: sourceTypeContainer,
 			OSType:     osTypeLinux,
 		},
 	}
@@ -106,7 +106,7 @@ func TestResolveVMBuildInput_AllowsCatalogImage(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu-2204", Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      catalogUbuntuImage,
-			SourceType: "container",
+			SourceType: sourceTypeContainer,
 			OSType:     osTypeLinux,
 		},
 	}

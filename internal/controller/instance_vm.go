@@ -37,8 +37,9 @@ const (
 	instanceManagedBy  = "virtfoundry"
 	powerStateRunning  = "Running"
 	powerStateHalted   = "Halted"
-	osTypeLinux        = "linux"
-	catalogUbuntuImage = "quay.io/containerdisks/ubuntu:22.04"
+	osTypeLinux         = "linux"
+	sourceTypeContainer = "container"
+	catalogUbuntuImage  = "quay.io/containerdisks/ubuntu:22.04"
 
 	// cirrosDemoContainerDisk is an allowlisted demo image for explicit Template
 	// CRs only. Instances never fall back to it when templateRef is missing

@@ -232,7 +232,7 @@ func TestResolveVMBuildInput_FailsWhenTemplateImageEmpty(t *testing.T) {
 	tmpl := &virtfoundryv1alpha1.Template{
 		ObjectMeta: metav1.ObjectMeta{Name: "blank", Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
-			SourceType: "container",
+			SourceType: sourceTypeContainer,
 			OSType:     osTypeLinux,
 		},
 	}
@@ -266,7 +266,7 @@ func TestResolveVMBuildInput_UsesExplicitCirrosTemplate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "cirros", Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      cirrosDemoContainerDisk,
-			SourceType: "container",
+			SourceType: sourceTypeContainer,
 			OSType:     osTypeLinux,
 		},
 	}
