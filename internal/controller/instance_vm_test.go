@@ -169,3 +169,129 @@ func TestAllowPodNetwork(t *testing.T) {
 		t.Fatal("expected true")
 	}
 }
+
+func TestResolveVMBuildInput_FailsWithoutTemplate(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = virtfoundryv1alpha1.AddToScheme(scheme)
+	r := &InstanceReconciler{Client: fake.NewClientBuilder().WithScheme(scheme).Build()}
+
+	inst := &virtfoundryv1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVMName,
+			Namespace: testTenantNS,
+			Annotations: map[string]string{
+				annotationAllowPodNetwork: annotationTruthy,
+			},
+		},
+		Spec: virtfoundryv1alpha1.InstanceSpec{DisplayName: testVMName},
+	}
+
+	in, err := r.resolveVMBuildInput(context.Background(), inst)
+	if err == nil {
+		t.Fatal("expected error when templateRef is missing")
+	}
+	if !strings.Contains(err.Error(), "templateRef") {
+		t.Fatalf("error should mention templateRef, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Cirros") {
+		t.Fatalf("error should mention Cirros default refusal, got: %v", err)
+	}
+	if in.image == cirrosDemoContainerDisk || strings.Contains(in.image, "cirros") {
+		t.Fatalf("must not default image to Cirros, got %q", in.image)
+	}
+}
+
+func TestResolveVMBuildInput_FailsWithEmptyTemplateRefName(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = virtfoundryv1alpha1.AddToScheme(scheme)
+	r := &InstanceReconciler{Client: fake.NewClientBuilder().WithScheme(scheme).Build()}
+
+	inst := &virtfoundryv1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVMName,
+			Namespace: testTenantNS,
+			Annotations: map[string]string{
+				annotationAllowPodNetwork: annotationTruthy,
+			},
+		},
+		Spec: virtfoundryv1alpha1.InstanceSpec{
+			DisplayName: testVMName,
+			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "  "},
+		},
+	}
+
+	_, err := r.resolveVMBuildInput(context.Background(), inst)
+	if err == nil || !strings.Contains(err.Error(), "templateRef") {
+		t.Fatalf("expected templateRef required error, got %v", err)
+	}
+}
+
+func TestResolveVMBuildInput_FailsWhenTemplateImageEmpty(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = virtfoundryv1alpha1.AddToScheme(scheme)
+	tmpl := &virtfoundryv1alpha1.Template{
+		ObjectMeta: metav1.ObjectMeta{Name: "blank", Namespace: operatorNamespace},
+		Spec: virtfoundryv1alpha1.TemplateSpec{
+			SourceType: "container",
+			OSType:     osTypeLinux,
+		},
+	}
+	r := &InstanceReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(tmpl).Build(),
+	}
+	inst := &virtfoundryv1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVMName,
+			Namespace: testTenantNS,
+			Annotations: map[string]string{
+				annotationAllowPodNetwork: annotationTruthy,
+			},
+		},
+		Spec: virtfoundryv1alpha1.InstanceSpec{
+			DisplayName: testVMName,
+			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "blank"},
+		},
+	}
+
+	_, err := r.resolveVMBuildInput(context.Background(), inst)
+	if err == nil || !strings.Contains(err.Error(), "empty spec.image") {
+		t.Fatalf("expected empty image error, got %v", err)
+	}
+}
+
+func TestResolveVMBuildInput_UsesExplicitCirrosTemplate(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = virtfoundryv1alpha1.AddToScheme(scheme)
+	tmpl := &virtfoundryv1alpha1.Template{
+		ObjectMeta: metav1.ObjectMeta{Name: "cirros", Namespace: operatorNamespace},
+		Spec: virtfoundryv1alpha1.TemplateSpec{
+			Image:      cirrosDemoContainerDisk,
+			SourceType: "container",
+			OSType:     osTypeLinux,
+		},
+	}
+	r := &InstanceReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(tmpl).Build(),
+	}
+	inst := &virtfoundryv1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVMName,
+			Namespace: testTenantNS,
+			Annotations: map[string]string{
+				annotationAllowPodNetwork: annotationTruthy,
+			},
+		},
+		Spec: virtfoundryv1alpha1.InstanceSpec{
+			DisplayName: testVMName,
+			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "cirros"},
+		},
+	}
+
+	in, err := r.resolveVMBuildInput(context.Background(), inst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.image != cirrosDemoContainerDisk {
+		t.Fatalf("image=%q", in.image)
+	}
+}
