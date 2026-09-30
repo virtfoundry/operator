@@ -8,5 +8,6 @@ const (
 	instancePhaseError    = "Error"
 	instancePhasePending  = "Pending"
 
-	podNetworkName = namespaceDefault
+	podNetworkName    = namespaceDefault
+	publicNetworkName = "public"
 )
