@@ -10,6 +10,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/virtfoundry/operator
+  ARGO_HOMELAB_REPO: Matheus-Thurler/argo-homelab
+  ARGO_VALUES_PATH: platform/virtfoundry/values-operator-homelab.yaml
 
 permissions:
   contents: read
@@ -71,3 +73,64 @@ jobs:
         run: |
           set -euo pipefail
           cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      # Pin digest in argo-homelab so Argo CD sees a Git change and rolls pods.
+      # Requires repo secret ARGO_HOMELAB_TOKEN (contents:write on Matheus-Thurler/argo-homelab).
+      - name: Pin image digest in argo-homelab
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          ARGO_HOMELAB_TOKEN: ${{ secrets.ARGO_HOMELAB_TOKEN }}
+          OPERATOR_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ARGO_HOMELAB_TOKEN:-}" ]; then
+            echo "::error::Missing secret ARGO_HOMELAB_TOKEN (PAT with contents:write on ${ARGO_HOMELAB_REPO})."
+            exit 1
+          fi
+          if [ -z "${OPERATOR_DIGEST:-}" ]; then
+            echo "::error::Missing image digest from build-push"
+            exit 1
+          fi
+
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          WORKDIR="${RUNNER_TEMP}/argo-homelab"
+          BASIC_AUTH="$(printf 'x-access-token:%s' "${ARGO_HOMELAB_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraHeader="Authorization: Basic ${BASIC_AUTH}" \
+            clone --depth 1 "https://github.com/${ARGO_HOMELAB_REPO}.git" "$WORKDIR" \
+            || {
+              echo "::error::Clone of ${ARGO_HOMELAB_REPO} failed. Rotate ARGO_HOMELAB_TOKEN."
+              exit 1
+            }
+          cd "$WORKDIR"
+          git config user.name "virtfoundry-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local http.https://github.com/.extraheader "Authorization: Basic ${BASIC_AUTH}"
+
+          VALUES="$ARGO_VALUES_PATH"
+          python3 - <<'PY'
+          import os, pathlib, re
+          path = pathlib.Path(os.environ["ARGO_VALUES_PATH"])
+          text = path.read_text()
+          digest = os.environ["OPERATOR_DIGEST"]
+          if not digest.startswith("sha256:"):
+              raise SystemExit(f"unexpected digest {digest!r}")
+          out = re.sub(
+              r'(?m)^(\s*digest:\s*")[^"]*(")\s*$',
+              rf'\1{digest}\2',
+              text,
+              count=1,
+          )
+          out = re.sub(r"(?m)^(\s*pullPolicy:\s*).+$", r"\1IfNotPresent", out, count=1)
+          if out == text:
+              raise SystemExit("values file unchanged — check image.digest key exists")
+          path.write_text(out)
+          print(f"pinned operator digest -> {digest}")
+          PY
+
+          git add "$VALUES"
+          if git diff --cached --quiet; then
+            echo "No digest change; skipping commit"
+            exit 0
+          fi
+          git commit -m "chore(virtfoundry): pin operator image to ${SHORT_SHA}"
+          git push origin HEAD:main
