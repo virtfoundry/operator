@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Fails if the rendered operator ClusterRole drifts from Tenant+Instance needs
-# (kubebuilder config/rbac/role.yaml), regains cluster-wide Secret access, or if
-# admission guards stop rendering on capable clusters.
+# Fails if the rendered operator ClusterRole drifts from Tenant+Instance+Network
+# needs (kubebuilder config/rbac/role.yaml), regains cluster-wide Secret access,
+# or if admission guards stop rendering on capable clusters.
 #
 # Keep in sync with virtfoundry/helm-charts scripts/ci/verify-operator-chart-rbac.sh.
 set -euo pipefail
@@ -10,12 +10,11 @@ CHART_DIR="${CHART_DIR:-charts/virtfoundry-operator}"
 VAP_API="admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy"
 
 # API groups / resource names that belong to future controllers, not the
-# currently shipped Tenant isolation + Instance reconcile surface.
+# currently shipped Tenant / Instance / Network reconcile surface.
 FORBIDDEN_PATTERNS=(
   'secrets'
   'persistentvolumeclaims'
   'volumesnapshots'
-  'network-attachment-definitions'
   'virtualmachinesnapshots'
   'virtualmachinerestores'
   'datavolumes'
@@ -35,6 +34,8 @@ REQUIRED_SNIPPETS=(
   'resources: \["tenants"\]'
   'resources: \["instances"\]'
   'resources: \["offerings", "templates", "networks"\]'
+  'networks/status'
+  'resources: \["network-attachment-definitions"\]'
   'resources: \["namespaces"\]'
   'resources: \["resourcequotas", "limitranges"\]'
   'resources: \["networkpolicies"\]'
@@ -64,7 +65,7 @@ for snip in "${REQUIRED_SNIPPETS[@]}"; do
     exit 1
   fi
 done
-echo "OK: rendered ClusterRole covers Tenant isolation + Instance (+ KubeVirt VMs/VMIs)"
+echo "OK: rendered ClusterRole covers Tenant + Instance + Network NAD (+ KubeVirt VMs/VMIs)"
 
 # The ClusterRole cannot be scoped by resourceNames (tenant namespaces are
 # virtfoundry-tenant-{slug}), so at least keep `update` off namespaces.

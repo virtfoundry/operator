@@ -4,14 +4,14 @@ metadata:
   name: {{ include "virtfoundry-operator.fullname" . }}
   labels:
     {{- include "virtfoundry-operator.labels" . | nindent 4 }}
-# Keep in sync with kubebuilder markers on TenantReconciler / InstanceReconciler
+# Keep in sync with kubebuilder markers on Tenant/Instance/Network reconcilers
 # and config/rbac/role.yaml (make manifests). Add permissions per controller when it lands.
 rules:
   - apiGroups: ["virtfoundry.io"]
     resources: ["tenants"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["virtfoundry.io"]
-    resources: ["tenants/status", "instances/status"]
+    resources: ["tenants/status", "instances/status", "networks/status"]
     verbs: ["get", "update", "patch"]
   - apiGroups: ["virtfoundry.io"]
     resources: ["tenants/finalizers", "instances/finalizers"]
@@ -22,6 +22,9 @@ rules:
   - apiGroups: ["virtfoundry.io"]
     resources: ["offerings", "templates", "networks"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
   # Tenant namespaces are named virtfoundry-tenant-{slug}, so resourceNames
   # cannot scope these verbs (no prefix matching, and namespaces are cluster
   # scoped). Deletion is constrained by the operator's ownership guard and by
