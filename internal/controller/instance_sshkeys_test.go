@@ -31,6 +31,7 @@ import (
 const (
 	testSSHKeyName   = "laptop"
 	testSSHPublicKey = "ssh-ed25519 AAAA laptop"
+	testTemplateName = "ubuntu"
 )
 
 func TestMergeCloudInitWithSSHKeys(t *testing.T) {
@@ -110,7 +111,7 @@ func TestResolveVMBuildInput_MergesSSHKeyRefs(t *testing.T) {
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 
 	tmpl := &virtfoundryv1alpha1.Template{
-		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu", Namespace: testTenantNS},
+		ObjectMeta: metav1.ObjectMeta{Name: testTemplateName, Namespace: testTenantNS},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:             catalogUbuntuImage,
 			OSType:            osTypeLinux,
@@ -135,7 +136,7 @@ func TestResolveVMBuildInput_MergesSSHKeyRefs(t *testing.T) {
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName: testVMName,
-			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu"},
+			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateName},
 			SSHKeyRefs:  []virtfoundryv1alpha1.LocalObjectRef{{Name: testSSHKeyName}},
 		},
 	}
@@ -163,7 +164,7 @@ func newCloudInitPrecedenceFixtures(t *testing.T) *InstanceReconciler {
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 
 	tmpl := &virtfoundryv1alpha1.Template{
-		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu", Namespace: testTenantNS},
+		ObjectMeta: metav1.ObjectMeta{Name: testTemplateName, Namespace: testTenantNS},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:             catalogUbuntuImage,
 			OSType:            osTypeLinux,
@@ -192,7 +193,7 @@ func TestResolveVMBuildInput_InstanceCloudInitOverridesTemplate(t *testing.T) {
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName:       testVMName,
-			TemplateRef:       &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu"},
+			TemplateRef:       &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateName},
 			CloudInitUserData: testInstanceCloudInit,
 		},
 	}
@@ -221,7 +222,7 @@ func TestResolveVMBuildInput_EmptyInstanceCloudInitFallsBackToTemplate(t *testin
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName:       testVMName,
-			TemplateRef:       &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu"},
+			TemplateRef:       &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateName},
 			CloudInitUserData: "   ",
 		},
 	}
@@ -250,7 +251,7 @@ func TestResolveVMBuildInput_InstanceCloudInitStillMergesSSHKeys(t *testing.T) {
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName:       testVMName,
-			TemplateRef:       &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu"},
+			TemplateRef:       &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateName},
 			CloudInitUserData: testInstanceCloudInit,
 			SSHKeyRefs:        []virtfoundryv1alpha1.LocalObjectRef{{Name: testSSHKeyName}},
 		},
