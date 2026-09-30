@@ -35,7 +35,16 @@ type TemplateSpec struct {
 	// +optional
 	OSType string `json:"osType,omitempty"`
 
-	// CloudInitUserData cloud-init user-data payload.
+	// CloudInitSecretRef points at a Secret holding cloud-init user-data
+	// (default key: userData). Prefer this over CloudInitUserData so guest
+	// passwords/SSH config are not stored in the Template CR (operator#16).
+	// When set, the Instance reconciler reads the Secret from the Instance
+	// (tenant) namespace, falling back to the Template namespace.
+	// +optional
+	CloudInitSecretRef *SecretKeyRef `json:"cloudInitSecretRef,omitempty"`
+
+	// CloudInitUserData is a legacy inline cloud-init user-data payload.
+	// Deprecated: prefer CloudInitSecretRef. Still honored when secretRef is unset.
 	// +optional
 	CloudInitUserData string `json:"cloudInitUserData,omitempty"`
 

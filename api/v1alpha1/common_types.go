@@ -36,9 +36,11 @@ type NamespacedObjectRef struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// SecretKeyRef points at a Secret key holding a credential hash.
+// SecretKeyRef points at a Secret key (credential hash, cloud-init user-data, etc.).
 type SecretKeyRef struct {
 	Name string `json:"name"`
+	// Key defaults to "userData" for cloud-init refs and implementation-defined
+	// keys for User/APIKey credential hashes.
 	// +optional
 	Key string `json:"key,omitempty"`
 }
