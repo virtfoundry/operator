@@ -62,7 +62,7 @@ func TestHomelab_ImageAllowlistAgainstLiveTemplates(t *testing.T) {
 		},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      "evil.example.com/pwn:latest",
-			SourceType: "container",
+			SourceType: sourceTypeContainer,
 			OSType:     osTypeLinux,
 		},
 	}

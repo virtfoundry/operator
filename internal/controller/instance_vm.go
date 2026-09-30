@@ -37,9 +37,14 @@ const (
 	instanceManagedBy   = "virtfoundry"
 	powerStateRunning   = "Running"
 	powerStateHalted    = "Halted"
-	defaultContainerImg = "quay.io/kubevirt/cirros-container-disk-demo"
 	osTypeLinux         = "linux"
+	sourceTypeContainer = "container"
 	catalogUbuntuImage  = "quay.io/containerdisks/ubuntu:22.04"
+
+	// cirrosDemoContainerDisk is an allowlisted demo image for explicit Template
+	// CRs only. Instances never fall back to it when templateRef is missing
+	// (issue #17 — Cirros default login is public).
+	cirrosDemoContainerDisk = "quay.io/kubevirt/cirros-container-disk-demo"
 
 	// annotationAllowPodNetwork opts an Instance into the KubeVirt pod network
 	// (masquerade). Production path does not attach it by default — guests must
@@ -75,7 +80,6 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 	in := vmBuildInput{
 		cpu:        1,
 		memoryMi:   512,
-		image:      defaultContainerImg,
 		osType:     osTypeLinux,
 		powerState: instancePowerState(inst),
 	}
@@ -95,22 +99,29 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		in.dedicatedCPU = inst.Spec.DedicatedCPU
 	}
 
-	if inst.Spec.TemplateRef != nil && inst.Spec.TemplateRef.Name != "" {
-		tmpl, err := r.resolveTemplate(ctx, inst, inst.Spec.TemplateRef.Name)
-		if err != nil {
-			return in, err
-		}
-		if strings.EqualFold(tmpl.Spec.SourceType, "iso") {
-			return in, fmt.Errorf("iso templates are not reconciled by the operator yet (template %q)", tmpl.Name)
-		}
-		if tmpl.Spec.Image != "" {
-			in.image = tmpl.Spec.Image
-		}
-		if tmpl.Spec.OSType != "" {
-			in.osType = tmpl.Spec.OSType
-		}
-		in.cloudInit = tmpl.Spec.CloudInitUserData
+	// Issue #17: never default ContainerDisk to Cirros. TemplateRef is required.
+	if inst.Spec.TemplateRef == nil || strings.TrimSpace(inst.Spec.TemplateRef.Name) == "" {
+		return in, fmt.Errorf(
+			"spec.templateRef is required: refuse to reconcile Instance %q without a Template (no default Cirros image)",
+			inst.Name,
+		)
 	}
+
+	tmpl, err := r.resolveTemplate(ctx, inst, inst.Spec.TemplateRef.Name)
+	if err != nil {
+		return in, err
+	}
+	if strings.EqualFold(tmpl.Spec.SourceType, "iso") {
+		return in, fmt.Errorf("iso templates are not reconciled by the operator yet (template %q)", tmpl.Name)
+	}
+	if strings.TrimSpace(tmpl.Spec.Image) == "" {
+		return in, fmt.Errorf("template %q has empty spec.image", tmpl.Name)
+	}
+	in.image = tmpl.Spec.Image
+	if tmpl.Spec.OSType != "" {
+		in.osType = tmpl.Spec.OSType
+	}
+	in.cloudInit = tmpl.Spec.CloudInitUserData
 
 	// Defense in depth for #22: never copy an unlisted Template.spec.image into
 	// ContainerDisk (webhook / VAP Template allowlist remains a follow-up in #26).
