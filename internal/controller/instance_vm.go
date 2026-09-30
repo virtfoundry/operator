@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -53,7 +54,17 @@ const (
 	// fail reconcile instead of landing on the cluster CNI.
 	annotationAllowPodNetwork = "virtfoundry.io/allow-pod-network"
 	annotationTruthy          = "true"
+
+	volumeContainerDisk = "containerdisk"
+	volumeCloudInitDisk = "cloudinitdisk"
 )
+
+// managedVolumeNames are Instance-owned volume names rewritten on every
+// CreateOrUpdate. Other volumes (future PVC disks, etc.) are left alone.
+var managedVolumeNames = map[string]struct{}{
+	volumeContainerDisk: {},
+	volumeCloudInitDisk: {},
+}
 
 type vmBuildInput struct {
 	cpu          int
@@ -272,8 +283,11 @@ func (r *InstanceReconciler) ensureVirtualMachine(ctx context.Context, inst *vir
 		if vm.CreationTimestamp.IsZero() {
 			vm.Labels = desired.Labels
 			vm.Spec = desired.Spec
-		} else if desired.Spec.RunStrategy != nil {
-			vm.Spec.RunStrategy = desired.Spec.RunStrategy
+		} else {
+			// Update path (issue #37): converge RunStrategy, NICs, and
+			// managed ContainerDisk/cloud-init volumes. Offering CPU/memory
+			// and DedicatedCPU remain create-time only (documented gap).
+			applyDesiredVMOnUpdate(vm, desired)
 		}
 		if r.Scheme != nil {
 			if err := controllerutil.SetControllerReference(inst, vm, r.Scheme); err != nil {
@@ -283,6 +297,102 @@ func (r *InstanceReconciler) ensureVirtualMachine(ctx context.Context, inst *vir
 		return nil
 	})
 	return err
+}
+
+// applyDesiredVMOnUpdate mutates an existing VirtualMachine toward desired
+// Instance-owned fields without replacing the whole Spec (avoids wiping
+// unknown/future volumes) and without leaving orphan managed volumes.
+func applyDesiredVMOnUpdate(vm, desired *kubevirtv1.VirtualMachine) {
+	if desired.Spec.RunStrategy != nil {
+		vm.Spec.RunStrategy = desired.Spec.RunStrategy
+	}
+	if desired.Labels != nil {
+		if vm.Labels == nil {
+			vm.Labels = map[string]string{}
+		}
+		maps.Copy(vm.Labels, desired.Labels)
+	}
+	if desired.Spec.Template == nil {
+		return
+	}
+	if vm.Spec.Template == nil {
+		vm.Spec.Template = desired.Spec.Template.DeepCopy()
+		return
+	}
+
+	desiredSpec := desired.Spec.Template.Spec
+	vm.Spec.Template.Spec.Networks = desiredSpec.Networks
+	vm.Spec.Template.Spec.Domain.Devices.Interfaces = desiredSpec.Domain.Devices.Interfaces
+	vm.Spec.Template.Spec.Domain.Devices.Disks = mergeManagedDisks(
+		vm.Spec.Template.Spec.Domain.Devices.Disks,
+		desiredSpec.Domain.Devices.Disks,
+	)
+	vm.Spec.Template.Spec.Volumes = mergeManagedVolumes(
+		vm.Spec.Template.Spec.Volumes,
+		desiredSpec.Volumes,
+	)
+}
+
+// mergeManagedVolumes replaces Instance-owned volumes by name, drops managed
+// orphans no longer in desired, and preserves any non-managed volumes.
+func mergeManagedVolumes(existing, desired []kubevirtv1.Volume) []kubevirtv1.Volume {
+	desiredByName := make(map[string]kubevirtv1.Volume, len(desired))
+	for _, v := range desired {
+		desiredByName[v.Name] = v
+	}
+
+	out := make([]kubevirtv1.Volume, 0, len(existing)+len(desired))
+	seen := make(map[string]struct{}, len(desired))
+	for _, v := range existing {
+		if _, managed := managedVolumeNames[v.Name]; !managed {
+			out = append(out, v)
+			continue
+		}
+		if d, ok := desiredByName[v.Name]; ok {
+			out = append(out, d)
+			seen[v.Name] = struct{}{}
+		}
+		// else: drop orphan managed volume (e.g. renamed away)
+	}
+	for _, v := range desired {
+		if _, ok := seen[v.Name]; ok {
+			continue
+		}
+		if _, managed := managedVolumeNames[v.Name]; managed {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// mergeManagedDisks mirrors mergeManagedVolumes for Domain.Devices.Disks.
+func mergeManagedDisks(existing, desired []kubevirtv1.Disk) []kubevirtv1.Disk {
+	desiredByName := make(map[string]kubevirtv1.Disk, len(desired))
+	for _, d := range desired {
+		desiredByName[d.Name] = d
+	}
+
+	out := make([]kubevirtv1.Disk, 0, len(existing)+len(desired))
+	seen := make(map[string]struct{}, len(desired))
+	for _, d := range existing {
+		if _, managed := managedVolumeNames[d.Name]; !managed {
+			out = append(out, d)
+			continue
+		}
+		if want, ok := desiredByName[d.Name]; ok {
+			out = append(out, want)
+			seen[d.Name] = struct{}{}
+		}
+	}
+	for _, d := range desired {
+		if _, ok := seen[d.Name]; ok {
+			continue
+		}
+		if _, managed := managedVolumeNames[d.Name]; managed {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 func (r *InstanceReconciler) deleteVirtualMachine(ctx context.Context, namespace, name string) error {
@@ -348,8 +458,8 @@ func buildVirtualMachine(inst *virtfoundryv1alpha1.Instance, kvName string, in v
 
 func linuxDisks() []kubevirtv1.Disk {
 	return []kubevirtv1.Disk{
-		{Name: "containerdisk", DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: "virtio"}}},
-		{Name: "cloudinitdisk", DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: "virtio"}}},
+		{Name: volumeContainerDisk, DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: "virtio"}}},
+		{Name: volumeCloudInitDisk, DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: "virtio"}}},
 	}
 }
 
@@ -360,13 +470,13 @@ func linuxVolumes(image, cloudInit string) []kubevirtv1.Volume {
 	}
 	return []kubevirtv1.Volume{
 		{
-			Name: "containerdisk",
+			Name: volumeContainerDisk,
 			VolumeSource: kubevirtv1.VolumeSource{
 				ContainerDisk: &kubevirtv1.ContainerDiskSource{Image: image},
 			},
 		},
 		{
-			Name: "cloudinitdisk",
+			Name: volumeCloudInitDisk,
 			VolumeSource: kubevirtv1.VolumeSource{
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{UserData: userData},
 			},

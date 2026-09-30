@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+### Changed
+
+- Instance CreateOrUpdate now converges NICs and TemplateRef/image (+ cloud-init
+  userdata) on existing VirtualMachines, not only `powerState`/`runStrategy`
+  (issue #37). Offering CPU/memory and `dedicatedCPU` remain create-time only.
+
 ## [0.8.0] - 2026-09-28
 
 ### Changed
