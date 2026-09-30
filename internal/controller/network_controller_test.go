@@ -135,9 +135,9 @@ func TestNetworkReconcile_IsolatedWritesStatus(t *testing.T) {
 func TestNetworkReconcile_SharedNoOp(t *testing.T) {
 	scheme := networkTestScheme(t)
 	net := &virtfoundryv1alpha1.Network{
-		ObjectMeta: metav1.ObjectMeta{Name: "public", Namespace: "virtfoundry-system", ResourceVersion: "1"},
+		ObjectMeta: metav1.ObjectMeta{Name: publicNetworkName, Namespace: "virtfoundry-system", ResourceVersion: "1"},
 		Spec: virtfoundryv1alpha1.NetworkSpec{
-			Name:        "public",
+			Name:        publicNetworkName,
 			NetworkType: networkTypeShared,
 			CIDR:        "10.0.50.0/24",
 		},
@@ -165,11 +165,12 @@ func TestNetworkReconcile_SharedNoOp(t *testing.T) {
 }
 
 func TestNetworkReconcile_ForeignNADRefuse(t *testing.T) {
+	const takenName = "taken"
 	scheme := networkTestScheme(t)
 	net := &virtfoundryv1alpha1.Network{
-		ObjectMeta: metav1.ObjectMeta{Name: "taken", Namespace: "ns1", ResourceVersion: "1"},
+		ObjectMeta: metav1.ObjectMeta{Name: takenName, Namespace: "ns1", ResourceVersion: "1"},
 		Spec: virtfoundryv1alpha1.NetworkSpec{
-			Name:        "taken",
+			Name:        takenName,
 			NetworkType: networkTypeIsolated,
 			CIDR:        "10.30.0.0/24",
 		},
@@ -178,7 +179,7 @@ func TestNetworkReconcile_ForeignNADRefuse(t *testing.T) {
 		"apiVersion": nadAPIVersion,
 		"kind":       nadKind,
 		"metadata": map[string]any{
-			"name":      "taken",
+			"name":      takenName,
 			"namespace": "ns1",
 			"labels": map[string]any{
 				labelManagedBy: "someone-else",

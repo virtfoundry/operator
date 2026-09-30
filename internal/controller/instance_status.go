@@ -88,7 +88,7 @@ func instancePhaseFromVMI(vmi *kubevirtv1.VirtualMachineInstance, vm *kubevirtv1
 
 func preferGuestIP(ifaces []kubevirtv1.VirtualMachineInstanceNetworkInterface) string {
 	for _, iface := range ifaces {
-		if iface.Name == "public" && iface.IP != "" {
+		if iface.Name == publicNetworkName && iface.IP != "" {
 			return iface.IP
 		}
 	}
