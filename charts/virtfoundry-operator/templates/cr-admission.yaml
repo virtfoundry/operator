@@ -1,15 +1,18 @@
 {{- if and .Values.crAdmission.enabled (.Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy") }}
 {{- /*
-  Cluster-side admission for VirtFoundry CRs (issue #13 + #26 Template slice).
+  Cluster-side admission for VirtFoundry CRs (issue #13 + #26 slices).
 
   - Instance: CREATE/UPDATE only in virtfoundry-tenant-*
   - Offering: CPU/memory bounds (also enforced via CRD OpenAPI)
   - Template: container sourceType images must match the ContainerDisk
     allowlist (same prefixes as imageAllowlist / reconciler #22)
+  - dedicatedCPU: denied on Offering/Instance unless
+    crAdmission.allowDedicatedCPU=true (KubeVirt DedicatedCPUPlacement gate)
 
-  Tenant slug uniqueness is controller-enforced (#15/#20); admission-time
-  uniqueness waits on validating webhooks (#26 residual: cert-manager +
-  Helm :9443). Privileged KubeVirt feature rejection is still open.
+  Tenant slug uniqueness is controller-enforced (#15/#20). Admission-time
+  uniqueness still needs validating webhooks (#26 residual): blocked until
+  cert-manager is available for Helm Certificate + :9443
+  ValidatingWebhookConfiguration (homelab has no cert-manager today).
 */ -}}
 {{- $prefixes := .Values.imageAllowlist.prefixes }}
 {{- if not $prefixes }}
@@ -57,6 +60,20 @@ spec:
          ))
       message: Template container image must match the ContainerDisk allowlist (chart imageAllowlist.prefixes)
       reason: Invalid
+{{- if not .Values.crAdmission.allowDedicatedCPU }}
+    - expression: >-
+        !(object.kind == 'Offering') ||
+        !has(object.spec.dedicatedCPU) ||
+        object.spec.dedicatedCPU == false
+      message: Offering dedicatedCPU is disabled (set chart crAdmission.allowDedicatedCPU=true to enable host CPU pinning)
+      reason: Forbidden
+    - expression: >-
+        !(object.kind == 'Instance') ||
+        !has(object.spec.dedicatedCPU) ||
+        object.spec.dedicatedCPU == false
+      message: Instance dedicatedCPU is disabled (set chart crAdmission.allowDedicatedCPU=true to enable host CPU pinning)
+      reason: Forbidden
+{{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding

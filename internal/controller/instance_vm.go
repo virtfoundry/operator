@@ -109,6 +109,9 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 	} else {
 		in.dedicatedCPU = inst.Spec.DedicatedCPU
 	}
+	if err := validateDedicatedCPU(in.dedicatedCPU); err != nil {
+		return in, err
+	}
 
 	// Issue #17: never default ContainerDisk to Cirros. TemplateRef is required.
 	if inst.Spec.TemplateRef == nil || strings.TrimSpace(inst.Spec.TemplateRef.Name) == "" {

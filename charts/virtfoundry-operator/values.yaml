@@ -37,14 +37,21 @@ namespaceGuard:
 kubevirtGuard:
   enabled: true
 
-# Cluster-side CR admission (issue #13 + #26 Template slice): Instance only in
+# Cluster-side CR admission (issue #13 + #26): Instance only in
 # virtfoundry-tenant-*, Offering CPU/memory bounds, Template container images
-# on the ContainerDisk allowlist (imageAllowlist.prefixes). Complements CRD
-# OpenAPI + reconciler guards. Tenant slug uniqueness is controller-enforced
-# (#15/#20); admission-time slug checks wait on webhooks (#26 residual:
-# cert-manager + Helm :9443 + ValidatingWebhookConfiguration).
+# on the ContainerDisk allowlist (imageAllowlist.prefixes), and dedicatedCPU
+# denied unless allowDedicatedCPU (KubeVirt DedicatedCPUPlacement). Complements
+# CRD OpenAPI + reconciler guards.
+#
+# Tenant slug uniqueness is controller-enforced (#15/#20). Admission-time slug
+# checks wait on validating webhooks (#26 residual) — blocked until cert-manager
+# is installed for Helm Certificate + :9443 ValidatingWebhookConfiguration.
 crAdmission:
   enabled: true
+  # When false (default), VAP rejects Offering/Instance dedicatedCPU=true and
+  # the reconciler refuses DedicatedCPUPlacement unless
+  # VIRTFOUNDRY_ALLOW_DEDICATED_CPU=true (set automatically when this is true).
+  allowDedicatedCPU: false
 
 
 resources:

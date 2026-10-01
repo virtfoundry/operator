@@ -53,18 +53,23 @@ residual on [#28](https://github.com/virtfoundry/operator/issues/28).
 - Rejects `Template` with `sourceType: container` whose `spec.image` is empty,
   HTTP(S), or outside the ContainerDisk allowlist (`imageAllowlist.prefixes`,
   default `quay.io/containerdisks/` + `quay.io/kubevirt/`)
+- Rejects `Offering` / `Instance` with `dedicatedCPU: true` unless
+  `crAdmission.allowDedicatedCPU=true` (KubeVirt `DedicatedCPUPlacement` gate)
 
 Offering bounds are also in the CRD OpenAPI schema. The Instance reconciler
-refuses out-of-namespace Instances, out-of-bounds Offerings, and unlisted
-Template images with `status.phase: Failed` (defense in depth when VAP is
-unavailable). Quantity parsing never uses `resource.MustParse` on guest
-CPU/memory. ISO Templates are not subject to the container allowlist at
-admission (CDI import path).
+refuses out-of-namespace Instances, out-of-bounds Offerings, unlisted
+Template images, and (by default) dedicatedCPU with `status.phase: Failed`
+(defense in depth when VAP is unavailable). Quantity parsing never uses
+`resource.MustParse` on guest CPU/memory. ISO Templates are not subject to
+the container allowlist at admission (CDI import path).
 
 **Still open in [#26](https://github.com/virtfoundry/operator/issues/26):**
 
-- Validating webhooks + cert-manager + Helm `:9443` (including admission-time slug uniqueness)
-- Privileged KubeVirt feature rejection / `dedicatedCPU` Offering gates
+- Validating webhooks + cert-manager + Helm `:9443` (including admission-time
+  Tenant slug uniqueness). **Blocked:** webhook `failurePolicy: Fail` needs
+  cert-manager Certificate/CA inject for the manager `:9443` Service; the
+  homelab cluster has no `cert-manager` install today, and Argo deploys the
+  operator chart from `virtfoundry/helm-charts` (sync after operator lands).
 
 The manager no longer starts an empty webhook TLS server.
 
@@ -85,8 +90,9 @@ network (masquerade) by default — attach Multus/VPC networks via `spec.nics`, 
 opt in with annotation `virtfoundry.io/allow-pod-network=true` (breaking change
 vs ≤0.7). ContainerDisk images must match the allowlist (`quay.io/containerdisks/`,
 `quay.io/kubevirt/` by default; chart `imageAllowlist.prefixes` /
-`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` Offering gates
-remain a follow-up.
+`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` /
+`DedicatedCPUPlacement` is denied by default (`crAdmission.allowDedicatedCPU`);
+set that (and the matching manager env) to opt in.
 
 ### Instance → VirtualMachine CreateOrUpdate (issue #37)
 

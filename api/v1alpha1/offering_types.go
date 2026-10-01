@@ -37,7 +37,8 @@ type OfferingSpec struct {
 	// +kubebuilder:validation:Maximum=1048576
 	MemoryMi int64 `json:"memoryMi"`
 
-	// DedicatedCPU pins vCPU threads to host cores.
+	// DedicatedCPU pins vCPU threads to host cores (KubeVirt DedicatedCPUPlacement).
+	// Gated by chart crAdmission.allowDedicatedCPU (default false) + reconciler.
 	// +optional
 	DedicatedCPU bool `json:"dedicatedCPU,omitempty"`
 

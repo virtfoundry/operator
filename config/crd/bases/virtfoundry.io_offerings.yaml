@@ -49,7 +49,9 @@ spec:
                 minimum: 1
                 type: integer
               dedicatedCPU:
-                description: DedicatedCPU pins vCPU threads to host cores.
+                description: |-
+                  DedicatedCPU pins vCPU threads to host cores (KubeVirt DedicatedCPUPlacement).
+                  Gated by chart crAdmission.allowDedicatedCPU (default false) + reconciler.
                 type: boolean
               displayName:
                 description: DisplayName shown in UI/REST.

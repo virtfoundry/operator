@@ -36,10 +36,16 @@ spec:
             {{- end }}
             - --health-probe-bind-address=:8081
             - --metrics-bind-address=0
-          {{- with .Values.imageAllowlist.prefixes }}
+          {{- if or .Values.imageAllowlist.prefixes .Values.crAdmission.allowDedicatedCPU }}
           env:
+            {{- with .Values.imageAllowlist.prefixes }}
             - name: VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES
               value: {{ . | join "," | quote }}
+            {{- end }}
+            {{- if .Values.crAdmission.allowDedicatedCPU }}
+            - name: VIRTFOUNDRY_ALLOW_DEDICATED_CPU
+              value: "true"
+            {{- end }}
           {{- end }}
           ports:
             - name: health

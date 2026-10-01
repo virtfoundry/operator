@@ -63,7 +63,8 @@ type InstanceSpec struct {
 	// +optional
 	CloudInitUserData string `json:"cloudInitUserData,omitempty"`
 
-	// DedicatedCPU pins vCPU threads to host cores.
+	// DedicatedCPU pins vCPU threads to host cores (KubeVirt DedicatedCPUPlacement).
+	// Gated by chart crAdmission.allowDedicatedCPU (default false) + reconciler.
 	// +optional
 	DedicatedCPU bool `json:"dedicatedCPU,omitempty"`
 

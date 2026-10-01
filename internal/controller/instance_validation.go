@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
@@ -31,6 +32,11 @@ const (
 	offeringCPUMax      = 256
 	offeringMemoryMiMin = 64
 	offeringMemoryMiMax = 1048576 // 1 TiB
+
+	// envAllowDedicatedCPU opts into KubeVirt DedicatedCPUPlacement when set to
+	// a truthy value (chart crAdmission.allowDedicatedCPU). Default deny —
+	// privileged host CPU pinning is gated at VAP + reconciler (issue #26).
+	envAllowDedicatedCPU = "VIRTFOUNDRY_ALLOW_DEDICATED_CPU"
 )
 
 // assertInstanceTenantNamespace rejects Instances outside virtfoundry-tenant-*.
@@ -72,4 +78,23 @@ func validateGuestResources(cpu int, memoryMi int64) error {
 // validateResolvedOffering applies bounds when an Offering CR was loaded.
 func validateResolvedOffering(off *virtfoundryv1alpha1.Offering) error {
 	return validateOfferingSpec(off.Spec.CPU, off.Spec.MemoryMi)
+}
+
+func dedicatedCPUAllowed() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(envAllowDedicatedCPU)))
+	return v == "1" || v == "true" || v == "yes"
+}
+
+// validateDedicatedCPU refuses host CPU pinning unless explicitly enabled
+// (chart crAdmission.allowDedicatedCPU / VIRTFOUNDRY_ALLOW_DEDICATED_CPU).
+// Admission (VAP) is the primary gate; this is defense in depth when VAP is off.
+func validateDedicatedCPU(requested bool) error {
+	if !requested {
+		return nil
+	}
+	if dedicatedCPUAllowed() {
+		return nil
+	}
+	return fmt.Errorf("dedicatedCPU is disabled (set chart crAdmission.allowDedicatedCPU / %s=true to enable host CPU pinning)",
+		envAllowDedicatedCPU)
 }

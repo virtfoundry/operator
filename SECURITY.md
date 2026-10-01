@@ -38,7 +38,11 @@ We aim to acknowledge within **7 days**.
   `virtfoundry-tenant-*` namespaces; Template `sourceType: container` images
   must match the ContainerDisk allowlist at admission (`crAdmission`) and
   again in the Instance reconciler
+- `dedicatedCPU` / KubeVirt `DedicatedCPUPlacement` is denied by default at
+  admission (`crAdmission.allowDedicatedCPU=false`) and again in the Instance
+  reconciler (`VIRTFOUNDRY_ALLOW_DEDICATED_CPU`)
 - Residual admission hardening (issue #26): validating webhooks + cert-manager
-  + Helm `:9443`, admission-time Tenant slug uniqueness, privileged KubeVirt
-  feature rejection
+  + Helm `:9443` (admission-time Tenant slug uniqueness). Blocked until
+  cert-manager is available on the target cluster for Certificate/CA inject;
+  do not ship `failurePolicy: Fail` webhooks without it
 - Operator logs use zap `Development: false` by default; never log cloud-init bodies

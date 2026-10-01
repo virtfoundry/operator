@@ -104,8 +104,9 @@ func main() {
 	// Do not start a webhook TLS server until validating/mutating handlers are
 	// registered (issue #13/#26). An empty webhook server is a false sense of
 	// security. Chart ValidatingAdmissionPolicy covers Instance/Offering/Template
-	// bounds today; residual: ValidatingWebhookConfiguration + cert-manager +
-	// Helm :9443 (slug uniqueness, privileged feature gates).
+	// bounds + dedicatedCPU gates today. Residual ValidatingWebhookConfiguration
+	// + cert-manager + Helm :9443 (slug uniqueness) is blocked until cert-manager
+	// is available on the deploy target.
 
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
 	// More info:

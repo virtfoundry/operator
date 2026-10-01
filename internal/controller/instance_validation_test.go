@@ -56,6 +56,21 @@ func TestValidateOfferingSpec(t *testing.T) {
 	}
 }
 
+func TestValidateDedicatedCPU(t *testing.T) {
+	t.Setenv(envAllowDedicatedCPU, "")
+	if err := validateDedicatedCPU(false); err != nil {
+		t.Fatalf("false dedicatedCPU rejected: %v", err)
+	}
+	if err := validateDedicatedCPU(true); err == nil {
+		t.Fatal("expected reject when dedicatedCPU requested and env unset")
+	}
+
+	t.Setenv(envAllowDedicatedCPU, "true")
+	if err := validateDedicatedCPU(true); err != nil {
+		t.Fatalf("dedicatedCPU should be allowed when env=true: %v", err)
+	}
+}
+
 func TestVMResourceRequirements_NoPanicOnBadInput(t *testing.T) {
 	t.Parallel()
 	if _, err := vmResourceRequirements(-1, 1, false); err == nil {

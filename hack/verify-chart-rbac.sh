@@ -169,3 +169,28 @@ if grep -q "quay.io/containerdisks/" <<<"$custom_admission"; then
   exit 1
 fi
 echo "OK: custom imageAllowlist.prefixes replaces built-in Template allowlist in VAP"
+
+# dedicatedCPU is denied by default (privileged KubeVirt DedicatedCPUPlacement).
+if ! grep -q "object.spec.dedicatedCPU == false" <<<"$admission"; then
+  echo "FAIL: CR admission policy missing default dedicatedCPU deny rules" >&2
+  exit 1
+fi
+echo "OK: CR admission denies dedicatedCPU by default"
+
+# Opt-in drops the dedicatedCPU validations and wires the reconciler env.
+allowed_admission="$(helm template virtfoundry-operator "$CHART_DIR" \
+  -s templates/cr-admission.yaml --api-versions "$VAP_API" \
+  --set crAdmission.allowDedicatedCPU=true)"
+if grep -q "object.spec.dedicatedCPU == false" <<<"$allowed_admission"; then
+  echo "FAIL: crAdmission.allowDedicatedCPU=true must omit dedicatedCPU deny rules" >&2
+  exit 1
+fi
+echo "OK: crAdmission.allowDedicatedCPU=true omits dedicatedCPU deny rules"
+
+deploy_env="$(helm template virtfoundry-operator "$CHART_DIR" \
+  -s templates/deployment.yaml --set crAdmission.allowDedicatedCPU=true)"
+if ! grep -q "VIRTFOUNDRY_ALLOW_DEDICATED_CPU" <<<"$deploy_env"; then
+  echo "FAIL: allowDedicatedCPU=true must set VIRTFOUNDRY_ALLOW_DEDICATED_CPU on the manager" >&2
+  exit 1
+fi
+echo "OK: allowDedicatedCPU=true sets VIRTFOUNDRY_ALLOW_DEDICATED_CPU on Deployment"
