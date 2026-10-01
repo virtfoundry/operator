@@ -65,7 +65,7 @@ admission (CDI import path).
 **Still open in [#26](https://github.com/virtfoundry/operator/issues/26):**
 
 - Validating webhooks + cert-manager + Helm `:9443` (including admission-time slug uniqueness)
-- Privileged KubeVirt feature rejection / `dedicatedCPU` Offering gates
+- Broader privileged KubeVirt feature rejection at admission
 
 The manager no longer starts an empty webhook TLS server.
 
@@ -86,8 +86,10 @@ network (masquerade) by default — attach Multus/VPC networks via `spec.nics`, 
 opt in with annotation `virtfoundry.io/allow-pod-network=true` (breaking change
 vs ≤0.7). ContainerDisk images must match the allowlist (`quay.io/containerdisks/`,
 `quay.io/kubevirt/` by default; chart `imageAllowlist.prefixes` /
-`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` Offering gates
-remain a follow-up.
+`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` /
+KubeVirt `DedicatedCPUPlacement` is applied only when the referenced Offering
+is labelled `virtfoundry.io/platform-owned=true` (issue #23); otherwise
+`Offering.spec.dedicatedCPU` and `Instance.spec.dedicatedCPU` are ignored.
 
 ### Instance → VirtualMachine CreateOrUpdate (issue #37)
 

@@ -42,7 +42,11 @@ We aim to acknowledge within **7 days**.
   `virtfoundry-tenant-*` namespaces; Template `sourceType: container` images
   must match the ContainerDisk allowlist at admission (`crAdmission`) and
   again in the Instance reconciler
+- `dedicatedCPU` / KubeVirt `DedicatedCPUPlacement` requires a platform-owned
+  Offering (`metadata.labels["virtfoundry.io/platform-owned"]="true"`). Without
+  that label the reconciler ignores Offering/Instance `dedicatedCPU` flags
+  (issue #23)
 - Residual admission hardening (issue #26): validating webhooks + cert-manager
-  + Helm `:9443`, admission-time Tenant slug uniqueness, privileged KubeVirt
-  feature rejection
+  + Helm `:9443`, admission-time Tenant slug uniqueness, broader privileged
+  KubeVirt feature rejection at admission
 - Operator logs use zap `Development: false` by default; never log cloud-init bodies
