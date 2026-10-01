@@ -27,7 +27,10 @@ import (
 	virtfoundryv1alpha1 "github.com/virtfoundry/operator/api/v1alpha1"
 )
 
-const testOfferingSmall = "small"
+const (
+	testOfferingSmall      = "small"
+	testTemplateUbuntu2204 = "ubuntu-2204"
+)
 
 func TestIsPlatformOwnedOffering(t *testing.T) {
 	t.Parallel()
@@ -87,7 +90,7 @@ func TestResolveVMBuildInput_DedicatedCPUGate(t *testing.T) {
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 
 	tmpl := &virtfoundryv1alpha1.Template{
-		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu-2204", Namespace: operatorNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: testTemplateUbuntu2204, Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      catalogUbuntuImage,
 			SourceType: sourceTypeContainer,
@@ -130,7 +133,7 @@ func TestResolveVMBuildInput_DedicatedCPUGate(t *testing.T) {
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
 			DisplayName: testVMName,
-			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu-2204"},
+			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateUbuntu2204},
 		},
 	}
 

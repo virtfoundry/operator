@@ -103,7 +103,7 @@ func TestResolveVMBuildInput_AllowsCatalogImage(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = virtfoundryv1alpha1.AddToScheme(scheme)
 	tmpl := &virtfoundryv1alpha1.Template{
-		ObjectMeta: metav1.ObjectMeta{Name: "ubuntu-2204", Namespace: operatorNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: testTemplateUbuntu2204, Namespace: operatorNamespace},
 		Spec: virtfoundryv1alpha1.TemplateSpec{
 			Image:      catalogUbuntuImage,
 			SourceType: sourceTypeContainer,
@@ -122,7 +122,7 @@ func TestResolveVMBuildInput_AllowsCatalogImage(t *testing.T) {
 			},
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
-			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: "ubuntu-2204"},
+			TemplateRef: &virtfoundryv1alpha1.LocalObjectRef{Name: testTemplateUbuntu2204},
 		},
 	}
 	in, err := r.resolveVMBuildInput(context.Background(), inst)
