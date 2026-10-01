@@ -3,6 +3,7 @@ package main
 // Compares ClusterRole rule triples (apiGroup/resource/verb) between
 // kubebuilder config/rbac/role.yaml and a rendered Helm ClusterRole.
 // Ignores metadata/name and rule grouping / YAML formatting.
+// Helm multi-doc: skips *-kubevirt-mutate (tenant RoleBinding slice, #28/#49).
 
 import (
 	"bytes"
@@ -10,7 +11,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -21,9 +23,14 @@ type policyRule struct {
 	Verbs     []string `yaml:"verbs"`
 }
 
+type objectMeta struct {
+	Name string `yaml:"name"`
+}
+
 type clusterRole struct {
-	Kind  string       `yaml:"kind"`
-	Rules []policyRule `yaml:"rules"`
+	Kind     string       `yaml:"kind"`
+	Metadata objectMeta   `yaml:"metadata"`
+	Rules    []policyRule `yaml:"rules"`
 }
 
 func main() {
@@ -60,7 +67,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "    - %s\n", t)
 		}
 	}
-	fmt.Fprintln(os.Stderr, "Update charts/.../templates/rbac.yaml (and helm-charts copy) after `make manifests`, or adjust +kubebuilder:rbac markers.")
+	fmt.Fprintln(os.Stderr, "Update charts/.../templates/rbac.yaml (and helm-charts copy)")
+	fmt.Fprintln(os.Stderr, "after `make manifests`, or adjust +kubebuilder:rbac markers.")
 	os.Exit(1)
 }
 
@@ -84,6 +92,10 @@ func loadTriples(path string, singleDoc bool) (map[string]struct{}, error) {
 			if singleDoc {
 				return nil, fmt.Errorf("%s: expected ClusterRole, got %s", path, doc.Kind)
 			}
+			continue
+		}
+		// Per-tenant mutate slice is not in config/rbac/role.yaml.
+		if strings.Contains(doc.Metadata.Name, "kubevirt-mutate") {
 			continue
 		}
 		if len(doc.Rules) == 0 {
@@ -119,6 +131,6 @@ func diff(a, b map[string]struct{}) []string {
 			out = append(out, k)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

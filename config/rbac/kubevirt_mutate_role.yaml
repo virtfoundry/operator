@@ -1,0 +1,22 @@
+---
+# Mutate verbs for KubeVirt VMs/VMIs (issue #28). Not ClusterRoleBound
+# cluster-wide — TenantReconciler mints RoleBindings in virtfoundry-tenant-*
+# that reference this role (local kustomize name; Helm uses
+# virtfoundry-operator-kubevirt-mutate).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role-kubevirt-mutate
+  labels:
+    virtfoundry.io/rbac-slice: kubevirt-mutate
+rules:
+- apiGroups:
+  - kubevirt.io
+  resources:
+  - virtualmachineinstances
+  - virtualmachines
+  verbs:
+  - create
+  - delete
+  - patch
+  - update

@@ -40,9 +40,10 @@ clusters serving `admissionregistration.k8s.io/v1` policies (Kubernetes >= 1.30)
 `kubevirtGuard.enabled` (default `true`) installs a ValidatingAdmissionPolicy
 that denies the operator ServiceAccount CREATE/UPDATE/DELETE on
 `kubevirt.io` VirtualMachines and VirtualMachineInstances outside
-`virtfoundry-tenant-*`. The ClusterRole still grants cluster-wide KubeVirt
-verbs (informers / reconcile); true Role/RoleBinding least privilege is
-residual on [#28](https://github.com/virtfoundry/operator/issues/28).
+`virtfoundry-tenant-*`. The manager ClusterRole is monitor-only on KubeVirt;
+mutate is granted per tenant via RoleBinding to `*-kubevirt-mutate` (issue
+[#28](https://github.com/virtfoundry/operator/issues/28)). The VAP remains
+defense-in-depth if RoleBindings are minted outside tenant namespaces.
 
 ### CR admission (Instance / Offering / Template)
 
@@ -64,7 +65,7 @@ admission (CDI import path).
 **Still open in [#26](https://github.com/virtfoundry/operator/issues/26):**
 
 - Validating webhooks + cert-manager + Helm `:9443` (including admission-time slug uniqueness)
-- Privileged KubeVirt feature rejection / `dedicatedCPU` Offering gates
+- Broader privileged KubeVirt feature rejection at admission
 
 The manager no longer starts an empty webhook TLS server.
 
@@ -85,8 +86,10 @@ network (masquerade) by default — attach Multus/VPC networks via `spec.nics`, 
 opt in with annotation `virtfoundry.io/allow-pod-network=true` (breaking change
 vs ≤0.7). ContainerDisk images must match the allowlist (`quay.io/containerdisks/`,
 `quay.io/kubevirt/` by default; chart `imageAllowlist.prefixes` /
-`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` Offering gates
-remain a follow-up.
+`VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES`). `dedicatedCPU` /
+KubeVirt `DedicatedCPUPlacement` is applied only when the referenced Offering
+is labelled `virtfoundry.io/platform-owned=true` (issue #23); otherwise
+`Offering.spec.dedicatedCPU` and `Instance.spec.dedicatedCPU` are ignored.
 
 ### Instance → VirtualMachine CreateOrUpdate (issue #37)
 

@@ -63,7 +63,10 @@ type InstanceSpec struct {
 	// +optional
 	CloudInitUserData string `json:"cloudInitUserData,omitempty"`
 
-	// DedicatedCPU pins vCPU threads to host cores.
+	// DedicatedCPU requests host CPU pinning. Applied only when the referenced
+	// Offering is platform-owned (label virtfoundry.io/platform-owned=true);
+	// otherwise ignored (issue #23). Prefer Offering.spec.dedicatedCPU on
+	// platform catalog Offerings.
 	// +optional
 	DedicatedCPU bool `json:"dedicatedCPU,omitempty"`
 

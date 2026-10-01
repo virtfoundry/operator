@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+### Security
+
+- KubeVirt RBAC split (issue #28): manager ClusterRole is monitor-only on
+  VirtualMachines/VMIs; mutate verbs move to `*-kubevirt-mutate` and are
+  granted per tenant via RoleBinding (`bind` avoids privilege-escalation).
+  `kubevirtGuard` VAP stays as defense-in-depth.
+
 ### Changed
 
 - Instance CreateOrUpdate now converges NICs and TemplateRef/image (+ cloud-init
