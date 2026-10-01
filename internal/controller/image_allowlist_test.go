@@ -18,6 +18,7 @@ func TestValidateContainerDiskImage_AllowsDefaults(t *testing.T) {
 		cirrosDemoContainerDisk,
 		catalogUbuntuImage,
 		"quay.io/containerdisks/fedora:40",
+		"ghcr.io/virtfoundry/node-ubuntu:1.36.5@sha256:deadbeef",
 	} {
 		if err := validateContainerDiskImage(img, nil); err != nil {
 			t.Fatalf("%q: %v", img, err)
