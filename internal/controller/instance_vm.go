@@ -55,6 +55,11 @@ const (
 	annotationAllowPodNetwork = "virtfoundry.io/allow-pod-network"
 	annotationTruthy          = "true"
 
+	// labelPlatformOwned marks a cluster Offering as platform-owned. DedicatedCPU
+	// (KubeVirt DedicatedCPUPlacement + Guaranteed QoS) is ignored unless the
+	// referenced Offering carries this label set to "true" (issue #23).
+	labelPlatformOwned = "virtfoundry.io/platform-owned"
+
 	volumeContainerDisk = "containerdisk"
 	volumeCloudInitDisk = "cloudinitdisk"
 )
@@ -95,8 +100,9 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		powerState: instancePowerState(inst),
 	}
 
+	var off *virtfoundryv1alpha1.Offering
 	if inst.Spec.OfferingRef != nil && inst.Spec.OfferingRef.Name != "" {
-		off := &virtfoundryv1alpha1.Offering{}
+		off = &virtfoundryv1alpha1.Offering{}
 		if err := r.Get(ctx, client.ObjectKey{Name: inst.Spec.OfferingRef.Name}, off); err != nil {
 			return in, fmt.Errorf("offering %q: %w", inst.Spec.OfferingRef.Name, err)
 		}
@@ -105,10 +111,9 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 		}
 		in.cpu = off.Spec.CPU
 		in.memoryMi = off.Spec.MemoryMi
-		in.dedicatedCPU = off.Spec.DedicatedCPU || inst.Spec.DedicatedCPU
-	} else {
-		in.dedicatedCPU = inst.Spec.DedicatedCPU
 	}
+	// Issue #23: DedicatedCPUPlacement only from platform-owned Offerings.
+	in.dedicatedCPU = resolveDedicatedCPU(inst, off)
 
 	// Issue #17: never default ContainerDisk to Cirros. TemplateRef is required.
 	if inst.Spec.TemplateRef == nil || strings.TrimSpace(inst.Spec.TemplateRef.Name) == "" {
@@ -250,6 +255,30 @@ func allowPodNetwork(inst *virtfoundryv1alpha1.Instance) bool {
 	}
 	v := strings.TrimSpace(strings.ToLower(inst.Annotations[annotationAllowPodNetwork]))
 	return v == annotationTruthy || v == "1" || v == "yes"
+}
+
+// isPlatformOwnedOffering reports whether an Offering carries
+// virtfoundry.io/platform-owned=true (platform catalog ownership signal).
+func isPlatformOwnedOffering(off *virtfoundryv1alpha1.Offering) bool {
+	if off == nil || off.Labels == nil {
+		return false
+	}
+	v := strings.TrimSpace(strings.ToLower(off.Labels[labelPlatformOwned]))
+	return v == annotationTruthy || v == "1" || v == "yes"
+}
+
+// resolveDedicatedCPU applies DedicatedCPUPlacement only when a platform-owned
+// Offering authorizes it (Offering.spec.dedicatedCPU, or Instance.spec.dedicatedCPU
+// while referencing that Offering). Without the platform-owned label, both
+// Offering and Instance dedicatedCPU flags are ignored (issue #23).
+func resolveDedicatedCPU(inst *virtfoundryv1alpha1.Instance, off *virtfoundryv1alpha1.Offering) bool {
+	if !isPlatformOwnedOffering(off) {
+		return false
+	}
+	if off.Spec.DedicatedCPU {
+		return true
+	}
+	return inst != nil && inst.Spec.DedicatedCPU
 }
 
 func podNetworkAttachment() ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {

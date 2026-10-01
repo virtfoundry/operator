@@ -37,7 +37,9 @@ type OfferingSpec struct {
 	// +kubebuilder:validation:Maximum=1048576
 	MemoryMi int64 `json:"memoryMi"`
 
-	// DedicatedCPU pins vCPU threads to host cores.
+	// DedicatedCPU pins vCPU threads to host cores (KubeVirt DedicatedCPUPlacement).
+	// Honoured only when the Offering is labelled virtfoundry.io/platform-owned=true
+	// (issue #23); otherwise ignored by the Instance reconciler.
 	// +optional
 	DedicatedCPU bool `json:"dedicatedCPU,omitempty"`
 
