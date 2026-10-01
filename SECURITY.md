@@ -31,5 +31,10 @@ We aim to acknowledge within **7 days**.
 - Prefer clusters with ValidatingAdmissionPolicy (Kubernetes >= 1.30) so
   `namespaceGuard` and `crAdmission` chart policies render
 - Offering CPU/memory are bounded in the CRD schema; Instances must live in
-  `virtfoundry-tenant-*` namespaces
+  `virtfoundry-tenant-*` namespaces; Template `sourceType: container` images
+  must match the ContainerDisk allowlist at admission (`crAdmission`) and
+  again in the Instance reconciler
+- Residual admission hardening (issue #26): validating webhooks + cert-manager
+  + Helm `:9443`, admission-time Tenant slug uniqueness, privileged KubeVirt
+  feature rejection
 - Operator logs use zap `Development: false` by default; never log cloud-init bodies

@@ -140,8 +140,9 @@ func (r *InstanceReconciler) resolveVMBuildInput(ctx context.Context, inst *virt
 	}
 	in.cloudInit = cloudInit
 
-	// Defense in depth for #22: never copy an unlisted Template.spec.image into
-	// ContainerDisk (webhook / VAP Template allowlist remains a follow-up in #26).
+	// Defense in depth for #22/#26: never copy an unlisted Template.spec.image
+	// into ContainerDisk. Chart crAdmission also denies bad Template CRs at
+	// admission when ValidatingAdmissionPolicy is available.
 	if err := validateContainerDiskImage(in.image, r.AllowedContainerImagePrefixes); err != nil {
 		return in, err
 	}

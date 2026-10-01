@@ -112,4 +112,34 @@ if ! grep -q "object.spec.cpu" <<<"$admission"; then
   echo "FAIL: CR admission policy missing Offering CPU/memory bounds" >&2
   exit 1
 fi
-echo "OK: CR admission policy renders Instance namespace + Offering bounds rules"
+if ! grep -q 'resources: \["instances", "offerings", "templates"\]' <<<"$admission"; then
+  echo "FAIL: CR admission policy must match instances, offerings, and templates" >&2
+  exit 1
+fi
+if ! grep -q "object.kind == 'Template'" <<<"$admission"; then
+  echo "FAIL: CR admission policy missing Template container image allowlist rule" >&2
+  exit 1
+fi
+if ! grep -q "quay.io/containerdisks/" <<<"$admission"; then
+  echo "FAIL: CR admission policy missing default Template allowlist prefix quay.io/containerdisks/" >&2
+  exit 1
+fi
+if ! grep -q "quay.io/kubevirt/" <<<"$admission"; then
+  echo "FAIL: CR admission policy missing default Template allowlist prefix quay.io/kubevirt/" >&2
+  exit 1
+fi
+echo "OK: CR admission policy renders Instance namespace + Offering bounds + Template allowlist"
+
+# Custom imageAllowlist.prefixes replaces built-in defaults (same model as reconciler).
+custom_admission="$(helm template virtfoundry-operator "$CHART_DIR" \
+  -s templates/cr-admission.yaml --api-versions "$VAP_API" \
+  --set 'imageAllowlist.prefixes={registry.homelab/vf/}')"
+if ! grep -q 'object.spec.image.startsWith("registry.homelab/vf/")' <<<"$custom_admission"; then
+  echo "FAIL: custom imageAllowlist.prefixes not rendered into Template admission rule" >&2
+  exit 1
+fi
+if grep -q "quay.io/containerdisks/" <<<"$custom_admission"; then
+  echo "FAIL: custom imageAllowlist.prefixes must replace built-in Template allowlist prefixes" >&2
+  exit 1
+fi
+echo "OK: custom imageAllowlist.prefixes replaces built-in Template allowlist in VAP"

@@ -30,11 +30,12 @@ imageAllowlist:
 namespaceGuard:
   enabled: true
 
-# Cluster-side CR admission (issue #13): Instance only in virtfoundry-tenant-*,
-# Offering CPU/memory bounds. Complements CRD OpenAPI. Tenant slug uniqueness
-# is enforced in the controller (#15/#20); admission-time slug checks wait on
-# webhooks (#26). Residual: webhook + cert-manager + :9443; Template CR
-# admission (#26) complements controller ContainerDisk allowlist (#22).
+# Cluster-side CR admission (issue #13 + #26 Template slice): Instance only in
+# virtfoundry-tenant-*, Offering CPU/memory bounds, Template container images
+# on the ContainerDisk allowlist (imageAllowlist.prefixes). Complements CRD
+# OpenAPI + reconciler guards. Tenant slug uniqueness is controller-enforced
+# (#15/#20); admission-time slug checks wait on webhooks (#26 residual:
+# cert-manager + Helm :9443 + ValidatingWebhookConfiguration).
 crAdmission:
   enabled: true
 
