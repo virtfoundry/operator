@@ -35,23 +35,26 @@ The chart adds a matching cluster-side guard: `namespaceGuard.enabled` (default
 ServiceAccount any Namespace `DELETE` outside that set. It renders only on
 clusters serving `admissionregistration.k8s.io/v1` policies (Kubernetes >= 1.30).
 
-### CR admission (Instance / Offering)
+### CR admission (Instance / Offering / Template)
 
 `crAdmission.enabled` (default `true`) installs a ValidatingAdmissionPolicy that:
 
 - Rejects `Instance` CREATE/UPDATE outside `virtfoundry-tenant-*`
 - Rejects `Offering` with CPU outside `1..256` or `memoryMi` outside `64..1048576`
+- Rejects `Template` with `sourceType: container` whose `spec.image` is empty,
+  HTTP(S), or outside the ContainerDisk allowlist (`imageAllowlist.prefixes`,
+  default `quay.io/containerdisks/` + `quay.io/kubevirt/`)
 
 Offering bounds are also in the CRD OpenAPI schema. The Instance reconciler
-refuses out-of-namespace Instances and out-of-bounds Offerings with
-`status.phase: Failed` (defense in depth when VAP is unavailable). Quantity
-parsing never uses `resource.MustParse` on guest CPU/memory.
+refuses out-of-namespace Instances, out-of-bounds Offerings, and unlisted
+Template images with `status.phase: Failed` (defense in depth when VAP is
+unavailable). Quantity parsing never uses `resource.MustParse` on guest
+CPU/memory. ISO Templates are not subject to the container allowlist at
+admission (CDI import path).
 
-**Not in this slice (tracked in [#26](https://github.com/virtfoundry/operator/issues/26)):**
+**Still open in [#26](https://github.com/virtfoundry/operator/issues/26):**
 
 - Validating webhooks + cert-manager + Helm `:9443` (including admission-time slug uniqueness)
-- Template CR admission (issue #26) — ContainerDisk image allowlist is already
-  enforced in the Instance reconciler (issue #22)
 - Privileged KubeVirt feature rejection / `dedicatedCPU` Offering gates
 
 The manager no longer starts an empty webhook TLS server.
