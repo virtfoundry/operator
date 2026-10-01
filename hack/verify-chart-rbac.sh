@@ -214,3 +214,12 @@ if grep -q "quay.io/containerdisks/" <<<"$custom_admission"; then
   exit 1
 fi
 echo "OK: custom imageAllowlist.prefixes replaces built-in Template allowlist in VAP"
+
+# Semantic drift check vs kubebuilder markers (`make manifests` → config/rbac/role.yaml).
+# Formatting / rule grouping may differ; apiGroup+resource+verb sets must match (operator#27).
+ROLE_FILE="${ROLE_FILE:-config/rbac/role.yaml}"
+HELM_RBAC_RENDER="$(mktemp)"
+trap 'rm -f "$HELM_RBAC_RENDER"' EXIT
+helm template virtfoundry-operator "$CHART_DIR" -s templates/rbac.yaml >"$HELM_RBAC_RENDER"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+( cd "$ROOT" && go run ./hack/comparechart "$ROLE_FILE" "$HELM_RBAC_RENDER" )
