@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fails if the rendered operator ClusterRole drifts from Tenant+Instance+Network
 # needs (kubebuilder config/rbac/role.yaml), regains Secret mutate verbs,
-# or if admission guards stop rendering on capable clusters.
+# or if admission guards (namespace / kubevirt / CR) stop rendering on capable
+# clusters.
 #
 # Keep in sync with virtfoundry/helm-charts scripts/ci/verify-operator-chart-rbac.sh.
 set -euo pipefail
@@ -96,6 +97,31 @@ if ! grep -q "kind: ValidatingAdmissionPolicy$" <<<"$guard"; then
   exit 1
 fi
 echo "OK: namespace deletion guard renders on clusters serving ValidatingAdmissionPolicy"
+
+kubevirt_guard="$(helm template virtfoundry-operator "$CHART_DIR" \
+  -s templates/kubevirt-guard.yaml --api-versions "$VAP_API")"
+
+if ! grep -q "kind: ValidatingAdmissionPolicy$" <<<"$kubevirt_guard"; then
+  echo "FAIL: kubevirt VM/VMI guard is not rendered on clusters serving $VAP_API" >&2
+  exit 1
+fi
+if ! grep -q 'resources: \["virtualmachines", "virtualmachineinstances"\]' <<<"$kubevirt_guard"; then
+  echo "FAIL: kubevirt guard missing VirtualMachine/VMI matchConstraints" >&2
+  exit 1
+fi
+if ! grep -q "request.namespace.startsWith('virtfoundry-tenant-')" <<<"$kubevirt_guard"; then
+  echo "FAIL: kubevirt guard missing tenant-namespace validation" >&2
+  exit 1
+fi
+if ! grep -q "operator-service-account-only" <<<"$kubevirt_guard"; then
+  echo "FAIL: kubevirt guard must constrain only the operator ServiceAccount" >&2
+  exit 1
+fi
+if ! grep -q "system:serviceaccount:virtfoundry-system:virtfoundry-operator" <<<"$kubevirt_guard"; then
+  echo "FAIL: kubevirt guard must match default operator SA username" >&2
+  exit 1
+fi
+echo "OK: kubevirt VM/VMI guard scopes operator mutate to virtfoundry-tenant-*"
 
 admission="$(helm template virtfoundry-operator "$CHART_DIR" \
   -s templates/cr-admission.yaml --api-versions "$VAP_API")"
