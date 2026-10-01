@@ -19,7 +19,7 @@ Rules: `typescript-exhaustive-switch`, `no-inline-imports` (UI/TS); em Go seguir
 ## VirtFoundry
 
 - SemVer produto **0.8.x** (alinhar chart/operator no release).
-- Testes no **homelab** — nunca Kind como alvo de validação do produto.
+- Testes no **homelab Linux** (cluster real ou Kind/Linux com KubeVirt). Gate de produto = homelab; **não** Kind no macOS (KubeVirt não funciona).
 - Preview sem commit só com pedido explícito.
 - Não taguear / mergear release sem OK do maintainer.
 
