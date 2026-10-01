@@ -26,10 +26,14 @@ We aim to acknowledge within **7 days**.
   and is deprecated on Template
 - Operator ClusterRole may **get/list/watch** Secrets (read-only) to resolve
   cloud-init refs; mutate verbs on Secrets stay forbidden
-- Helm ClusterRole is scoped to the **running** controllers (Tenant + Instance + Network today: tenants/instances/networks CRs, offerings/templates/sshkeys read, namespaces for tenants, KubeVirt VMs/VMIs, Secrets read). It is not absolute least privilege cluster-wide — Namespace `delete` remains cluster-scoped in RBAC and is constrained by the reconciler ownership guard plus the chart's ValidatingAdmissionPolicy. Expand RBAC only when a new controller lands; keep `charts/virtfoundry-operator/templates/rbac.yaml` aligned with `config/rbac/role.yaml`
+- Helm ClusterRole is scoped to the **running** controllers (Tenant + Instance + Network today: tenants/instances/networks CRs, offerings/templates/sshkeys read, namespaces for tenants, KubeVirt VMs/VMIs, Secrets read). It is not absolute least privilege cluster-wide — Namespace `delete` and KubeVirt VM/VMI mutate remain cluster-scoped in RBAC and are constrained by reconciler ownership guards plus chart ValidatingAdmissionPolicies (`namespaceGuard`, `kubevirtGuard`). Expand RBAC only when a new controller lands; keep `charts/virtfoundry-operator/templates/rbac.yaml` aligned with `config/rbac/role.yaml`
 - Pin operator image by digest in production overlays
 - Prefer clusters with ValidatingAdmissionPolicy (Kubernetes >= 1.30) so
-  `namespaceGuard` and `crAdmission` chart policies render
+  `namespaceGuard`, `kubevirtGuard`, and `crAdmission` chart policies render
+- KubeVirt VM/VMI mutate (issue #28): stolen operator SA is denied CREATE/UPDATE/DELETE
+  outside `virtfoundry-tenant-*` by `kubevirtGuard`. Residual: Role/RoleBinding
+  per tenant namespace (RBAC privilege-escalation rules block the operator from
+  minting mutate Roles without already holding those verbs)
 - Offering CPU/memory are bounded in the CRD schema; Instances must live in
   `virtfoundry-tenant-*` namespaces; Template `sourceType: container` images
   must match the ContainerDisk allowlist at admission (`crAdmission`) and

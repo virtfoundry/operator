@@ -30,6 +30,13 @@ imageAllowlist:
 namespaceGuard:
   enabled: true
 
+# Cluster-side guard rail (issue #28): denies the operator ServiceAccount
+# CREATE/UPDATE/DELETE on kubevirt.io VirtualMachines/VMIs outside
+# virtfoundry-tenant-*. Complements ClusterRole (still cluster-wide for
+# informers); true Role/RoleBinding least privilege is residual on #28.
+kubevirtGuard:
+  enabled: true
+
 # Cluster-side CR admission (issue #13 + #26 Template slice): Instance only in
 # virtfoundry-tenant-*, Offering CPU/memory bounds, Template container images
 # on the ContainerDisk allowlist (imageAllowlist.prefixes). Complements CRD
@@ -38,6 +45,7 @@ namespaceGuard:
 # cert-manager + Helm :9443 + ValidatingWebhookConfiguration).
 crAdmission:
   enabled: true
+
 
 resources:
   requests:

@@ -35,6 +35,15 @@ The chart adds a matching cluster-side guard: `namespaceGuard.enabled` (default
 ServiceAccount any Namespace `DELETE` outside that set. It renders only on
 clusters serving `admissionregistration.k8s.io/v1` policies (Kubernetes >= 1.30).
 
+### KubeVirt VM/VMI guard
+
+`kubevirtGuard.enabled` (default `true`) installs a ValidatingAdmissionPolicy
+that denies the operator ServiceAccount CREATE/UPDATE/DELETE on
+`kubevirt.io` VirtualMachines and VirtualMachineInstances outside
+`virtfoundry-tenant-*`. The ClusterRole still grants cluster-wide KubeVirt
+verbs (informers / reconcile); true Role/RoleBinding least privilege is
+residual on [#28](https://github.com/virtfoundry/operator/issues/28).
+
 ### CR admission (Instance / Offering / Template)
 
 `crAdmission.enabled` (default `true`) installs a ValidatingAdmissionPolicy that:
