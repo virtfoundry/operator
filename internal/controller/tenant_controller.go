@@ -48,12 +48,26 @@ const (
 type TenantReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	// OperatorServiceAccount / OperatorNamespace identify the manager SA that
+	// receives per-tenant KubeVirt mutate via RoleBinding (issue #28). Empty
+	// fields fall back to chart defaults (virtfoundry-operator /
+	// virtfoundry-system).
+	OperatorServiceAccount string
+	OperatorNamespace      string
+	// KubeVirtMutateClusterRole is the Helm-installed ClusterRole that holds
+	// VM/VMI create/update/patch/delete. Empty → chart default name.
+	KubeVirtMutateClusterRole string
 }
 
 // Namespace names are derived from a Tenant slug, so RBAC cannot scope these
 // verbs any further: resourceNames does not support prefixes and namespaces are
 // cluster-scoped. Ownership is therefore enforced by assertTenantNamespaceOwned
 // below, and by the optional ValidatingAdmissionPolicy shipped with the chart.
+//
+// KubeVirt mutate is not on the manager ClusterRole: Tenant mints a RoleBinding
+// to the dedicated kubevirt-mutate ClusterRole (bind verb + resourceNames).
+// See ensureKubeVirtMutateRoleBinding / charts/.../rbac.yaml (issue #28).
 //
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=virtfoundry.io,resources=tenants/status,verbs=get;update;patch
@@ -62,6 +76,8 @@ type TenantReconciler struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=manager-role-kubevirt-mutate,verbs=bind
 
 // Reconcile ensures Namespace virtfoundry-tenant-{slug} exists for the Tenant.
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

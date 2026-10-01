@@ -166,8 +166,11 @@ func main() {
 	}
 
 	if err := (&controller.TenantReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                    mgr.GetClient(),
+		Scheme:                    mgr.GetScheme(),
+		OperatorServiceAccount:    envOr("VIRTFOUNDRY_OPERATOR_SERVICE_ACCOUNT", "virtfoundry-operator"),
+		OperatorNamespace:         envOr("VIRTFOUNDRY_OPERATOR_NAMESPACE", "virtfoundry-system"),
+		KubeVirtMutateClusterRole: envOr("VIRTFOUNDRY_KUBEVIRT_MUTATE_CLUSTERROLE", "virtfoundry-operator-kubevirt-mutate"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "tenant")
 		os.Exit(1)
@@ -202,4 +205,11 @@ func main() {
 		setupLog.Error(err, "Failed to run manager")
 		os.Exit(1)
 	}
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
