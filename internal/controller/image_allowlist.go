@@ -33,6 +33,7 @@ const envAllowedContainerImagePrefixes = "VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PR
 var defaultContainerImagePrefixes = []string{
 	"quay.io/containerdisks/",
 	"quay.io/kubevirt/",
+	"ghcr.io/virtfoundry/",
 }
 
 func effectiveContainerImagePrefixes(override []string) []string {
