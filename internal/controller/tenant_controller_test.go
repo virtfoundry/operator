@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -86,7 +87,7 @@ var _ = Describe("Tenant Controller", func() {
 				g.Expect(got.Finalizers).To(ContainElement("virtfoundry.io/finalizer"))
 			}, timeout, interval).Should(Succeed())
 
-			By("ensuring default-deny NetworkPolicy, ResourceQuota, and LimitRange")
+			By("ensuring default-deny NetworkPolicy, ResourceQuota, LimitRange, and KubeVirt mutate RoleBinding")
 			Eventually(func(g Gomega) {
 				np := &networkingv1.NetworkPolicy{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
@@ -108,6 +109,16 @@ var _ = Describe("Tenant Controller", func() {
 					Namespace: tenantNS, Name: isolationLimitRangeName,
 				}, lr)).To(Succeed())
 				g.Expect(lr.Spec.Limits).NotTo(BeEmpty())
+
+				rb := &rbacv1.RoleBinding{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Namespace: tenantNS, Name: kubevirtMutateRoleBindingName,
+				}, rb)).To(Succeed())
+				g.Expect(rb.RoleRef.Kind).To(Equal("ClusterRole"))
+				g.Expect(rb.RoleRef.Name).To(Equal(defaultKubeVirtMutateClusterRole))
+				g.Expect(rb.Subjects).To(HaveLen(1))
+				g.Expect(rb.Subjects[0].Name).To(Equal(defaultOperatorServiceAccount))
+				g.Expect(rb.Subjects[0].Namespace).To(Equal(defaultOperatorNamespace))
 			}, timeout, interval).Should(Succeed())
 		})
 

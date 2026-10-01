@@ -56,12 +56,11 @@ type InstanceReconciler struct {
 // Read-only Secrets for Template/Instance cloudInitSecretRef (operator#16).
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-// Cluster-wide get/list/watch for informers; create/update/patch/delete also
-// remain cluster-scoped in RBAC so reconcile works. Namespace blast radius is
-// constrained by charts/.../kubevirt-guard.yaml (issue #28). Role/RoleBinding
-// per tenant is residual — RBAC privilege-escalation rules block minting
-// mutate Roles without already holding those verbs.
-// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines;virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
+// Cluster-wide get/list/watch for informers (monitor-only outside tenants).
+// Mutate verbs come from a per-tenant RoleBinding to the dedicated
+// kubevirt-mutate ClusterRole (TenantReconciler, issue #28). kubevirtGuard VAP
+// remains defense-in-depth if RoleBindings are minted outside tenant ns.
+// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines;virtualmachineinstances,verbs=get;list;watch
 
 func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logf.FromContext(ctx)

@@ -21,6 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -33,6 +34,13 @@ const (
 	isolationNetworkPolicyName = "virtfoundry-default-deny"
 	isolationResourceQuotaName = "virtfoundry-default"
 	isolationLimitRangeName    = "virtfoundry-default"
+	// kubevirtMutateRoleBindingName is minted in each tenant namespace so the
+	// operator SA can mutate VMs/VMIs only there (issue #28).
+	kubevirtMutateRoleBindingName = "virtfoundry-operator-kubevirt-mutate"
+
+	defaultOperatorServiceAccount    = "virtfoundry-operator"
+	defaultOperatorNamespace         = "virtfoundry-system"
+	defaultKubeVirtMutateClusterRole = "virtfoundry-operator-kubevirt-mutate"
 
 	// PSA privileged is required for KubeVirt virt-launcher (devices, capabilities).
 	labelPSAEnforce = "pod-security.kubernetes.io/enforce"
@@ -45,7 +53,8 @@ const (
 )
 
 // ensureTenantIsolation stamps PSA labels and ensures default-deny NetworkPolicy,
-// ResourceQuota, and LimitRange in an owned tenant namespace.
+// ResourceQuota, LimitRange, and the KubeVirt mutate RoleBinding in an owned
+// tenant namespace.
 //
 // NetworkPolicy choices (documented for operators):
 //   - Default deny ingress and egress for all pods in the tenant namespace.
@@ -71,7 +80,10 @@ func (r *TenantReconciler) ensureTenantIsolation(
 	if err := r.ensureResourceQuota(ctx, tenant, nsName); err != nil {
 		return err
 	}
-	return r.ensureLimitRange(ctx, tenant, nsName)
+	if err := r.ensureLimitRange(ctx, tenant, nsName); err != nil {
+		return err
+	}
+	return r.ensureKubeVirtMutateRoleBinding(ctx, tenant, nsName)
 }
 
 func tenantPSALabels() map[string]string {
@@ -225,6 +237,56 @@ func (r *TenantReconciler) ensureLimitRange(
 		return controllerutil.SetControllerReference(tenant, lr, r.Scheme)
 	})
 	return err
+}
+
+// ensureKubeVirtMutateRoleBinding grants the operator SA create/update/patch/delete
+// on kubevirt.io VMs/VMIs in this tenant namespace only, by binding the Helm
+// ClusterRole that holds those verbs. The manager ClusterRole keeps monitor-only
+// (get/list/watch) cluster-wide for informers. Privilege-escalation is avoided
+// via bind on that ClusterRole (resourceNames), not by holding mutate verbs
+// cluster-wide (issue #28).
+func (r *TenantReconciler) ensureKubeVirtMutateRoleBinding(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+	nsName string,
+) error {
+	saName, saNS, clusterRole := r.kubeVirtMutateBindingIdentity()
+
+	rb := &rbacv1.RoleBinding{}
+	rb.Name = kubevirtMutateRoleBindingName
+	rb.Namespace = nsName
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, rb, func() error {
+		rb.Labels = isolationObjectLabels(tenant)
+		rb.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     clusterRole,
+		}
+		rb.Subjects = []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      saName,
+			Namespace: saNS,
+		}}
+		return controllerutil.SetControllerReference(tenant, rb, r.Scheme)
+	})
+	return err
+}
+
+func (r *TenantReconciler) kubeVirtMutateBindingIdentity() (saName, saNS, clusterRole string) {
+	saName = r.OperatorServiceAccount
+	if saName == "" {
+		saName = defaultOperatorServiceAccount
+	}
+	saNS = r.OperatorNamespace
+	if saNS == "" {
+		saNS = defaultOperatorNamespace
+	}
+	clusterRole = r.KubeVirtMutateClusterRole
+	if clusterRole == "" {
+		clusterRole = defaultKubeVirtMutateClusterRole
+	}
+	return saName, saNS, clusterRole
 }
 
 func isolationObjectLabels(tenant *virtfoundryv1alpha1.Tenant) map[string]string {

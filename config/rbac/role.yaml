@@ -53,6 +53,14 @@ rules:
   - virtualmachineinstances
   - virtualmachines
   verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
   - create
   - delete
   - get
@@ -61,9 +69,17 @@ rules:
   - update
   - watch
 - apiGroups:
-  - networking.k8s.io
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - manager-role-kubevirt-mutate
   resources:
-  - networkpolicies
+  - clusterroles
+  verbs:
+  - bind
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
   verbs:
   - create
   - delete

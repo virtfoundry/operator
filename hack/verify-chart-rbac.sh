@@ -40,6 +40,9 @@ REQUIRED_SNIPPETS=(
   'resources: \["networkpolicies"\]'
   'resources: \["virtualmachines", "virtualmachineinstances"\]'
   'resources: \["secrets"\]'
+  'resources: \["rolebindings"\]'
+  'verbs: \["bind"\]'
+  'virtfoundry-operator-kubevirt-mutate'
 )
 
 if ! command -v helm >/dev/null 2>&1; then
@@ -65,7 +68,7 @@ for snip in "${REQUIRED_SNIPPETS[@]}"; do
     exit 1
   fi
 done
-echo "OK: rendered ClusterRole covers Tenant + Instance + Network NAD (+ KubeVirt VMs/VMIs) + Secrets read"
+echo "OK: rendered ClusterRole covers Tenant + Instance + Network NAD (+ KubeVirt monitor) + Secrets read + RoleBinding bind"
 
 # Secrets must be read-only (cloudInitSecretRef, operator#16). Mutate stays forbidden.
 secrets_block="$(awk '/resources: \["secrets"\]/{flag=1; next} flag && /resources:/{exit} flag' <<<"$rbac")"
@@ -78,6 +81,48 @@ for bad in create update patch delete deletecollection; do
   fi
 done
 echo "OK: secrets ClusterRole verbs are read-only (get/list/watch)"
+
+# Manager ClusterRole must be monitor-only on kubevirt.io (issue #28 split).
+# Mutate lives on *-kubevirt-mutate and is granted via per-tenant RoleBinding.
+manager_kubevirt_block="$(awk '
+  /name: virtfoundry-operator$/ {in_manager=1}
+  in_manager && /name: virtfoundry-operator-kubevirt-mutate$/ {exit}
+  in_manager && /resources: \["virtualmachines", "virtualmachineinstances"\]/ {flag=1; next}
+  flag && /resources:|apiGroups:/{exit}
+  flag
+' <<<"$rbac")"
+manager_kubevirt_verbs="$(grep 'verbs:' <<<"$manager_kubevirt_block" || true)"
+[[ -n "$manager_kubevirt_verbs" ]] || { echo "FAIL: could not find manager kubevirt verbs" >&2; exit 1; }
+for bad in create update patch delete deletecollection; do
+  if grep -qw "$bad" <<<"$manager_kubevirt_verbs"; then
+    echo "FAIL: manager ClusterRole must be monitor-only on kubevirt.io, found '$bad' ($manager_kubevirt_verbs)" >&2
+    exit 1
+  fi
+done
+echo "OK: manager ClusterRole kubevirt.io verbs are monitor-only (get/list/watch)"
+
+mutate_role="$(awk '
+  /kind: ClusterRole$/ {cr=1; next}
+  cr && /name: virtfoundry-operator-kubevirt-mutate$/ {found=1; next}
+  found && /kind:/ {exit}
+  found
+' <<<"$rbac")"
+if ! grep -q 'resources: \["virtualmachines", "virtualmachineinstances"\]' <<<"$mutate_role"; then
+  echo "FAIL: kubevirt-mutate ClusterRole missing VM/VMI resources" >&2
+  exit 1
+fi
+mutate_verbs="$(grep 'verbs:' <<<"$mutate_role" || true)"
+for need in create update patch delete; do
+  if ! grep -qw "$need" <<<"$mutate_verbs"; then
+    echo "FAIL: kubevirt-mutate ClusterRole missing verb '$need' ($mutate_verbs)" >&2
+    exit 1
+  fi
+done
+if grep -qw "list" <<<"$mutate_verbs" || grep -qw "watch" <<<"$mutate_verbs"; then
+  echo "FAIL: kubevirt-mutate ClusterRole should be mutate-only, not monitor ($mutate_verbs)" >&2
+  exit 1
+fi
+echo "OK: kubevirt-mutate ClusterRole is mutate-only (no cluster-wide binding)"
 
 # The ClusterRole cannot be scoped by resourceNames (tenant namespaces are
 # virtfoundry-tenant-{slug}), so at least keep `update` off namespaces.
