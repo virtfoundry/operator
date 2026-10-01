@@ -6,18 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-01
+
+### Added
+
+- NetworkReconciler → Multus NAD for isolated networks.
+- Instance `sshKeyRefs` injected into cloud-init; `cloudInitUserData` + `cloudInitSecretRef`.
+- Instance CreateOrUpdate converges NICs and TemplateRef/image (+ cloud-init) on existing VMs (not only powerState).
+- CI pins operator digest to argo-homelab after image push.
+
 ### Security
 
-- KubeVirt RBAC split (issue #28): manager ClusterRole is monitor-only on
-  VirtualMachines/VMIs; mutate verbs move to `*-kubevirt-mutate` and are
-  granted per tenant via RoleBinding (`bind` avoids privilege-escalation).
-  `kubevirtGuard` VAP stays as defense-in-depth.
+- VAP admits Template container images; deny kubevirt mutate outside tenant ns.
+- KubeVirt mutate split to per-tenant RoleBinding (`*-kubevirt-mutate`); ClusterRole monitor-only.
+- Gate `dedicatedCPU` via platform-owned Offering label (coordinates core Offering stamp).
+- Fail reconcile without template instead of cirros default.
+- CI fails when Helm ClusterRole drifts from kubebuilder markers.
 
 ### Changed
 
-- Instance CreateOrUpdate now converges NICs and TemplateRef/image (+ cloud-init
-  userdata) on existing VirtualMachines, not only `powerState`/`runStrategy`
-  (issue #37). Offering CPU/memory and `dedicatedCPU` remain create-time only.
+- Release alignment with core/helm-charts **0.9.0**.
 
 ## [0.8.0] - 2026-09-28
 
