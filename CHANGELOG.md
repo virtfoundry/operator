@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-06
+
+### Added
+
+- CRD validation allows `ghcr.io/virtfoundry/` containerDisk images (VKS node image).
+
+### Security
+
+- CodeQL, Scorecard, Dependabot (grouped monthly) and dependency review.
+
+### Changed
+
+- Chart / image pins aligned with core **0.10.0**.
+
 ## [0.9.0] - 2026-10-01
 
 ### Added
