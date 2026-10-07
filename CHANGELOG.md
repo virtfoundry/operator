@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-07
+
+### Changed
+
+- Chart / image pins aligned with core **0.11.2**. No code changes.
+
 ## [0.11.1] - 2026-10-07
 
 ### Changed
