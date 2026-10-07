@@ -1,6 +1,6 @@
 # Build the manager binary
 # golang:1.26 index digest (multi-arch). Refresh when bumping the Go toolchain.
-FROM golang:1.26@sha256:6c2a5538f964f1c82f97ad14988bf05de100d922d159d0e398b54c7b0ca0c6c9 AS builder
+FROM golang:1.27@sha256:e0174e51e81218523251d85d248a90d24c3d5e81543b4f07a5d66229397db190 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
