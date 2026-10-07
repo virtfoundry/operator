@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-07
+
+### Changed
+
+- Dependency updates: Go modules, builder image Go 1.27, GitHub Actions.
+- Chart / image pins aligned with core **0.11.1**.
+
 ## [0.11.0] - 2026-10-07
 
 ### Changed
