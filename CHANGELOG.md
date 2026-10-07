@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-10-07
+
+### Changed
+
+- Version aligned with the VirtFoundry 0.11.3 release (no code change in this repository).
+
 ## [0.11.2] - 2026-10-07
 
 ### Changed
