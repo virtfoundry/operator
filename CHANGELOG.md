@@ -6,6 +6,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-07
+
+### Changed
+
+- **Breaking:** the `virtfoundry-operator` chart no longer ships `crds/`. Install the CRDs with the `virtfoundry-crds` chart from [helm-charts](https://github.com/virtfoundry/helm-charts) first (`helm.sh/resource-policy: keep`, upgraded by `helm upgrade`). `config/crd/bases` stays the source of truth and the CRD chart syncs from it. Existing clusters adopt their CRDs first: see [CRDs and upgrades](https://virtfoundry.github.io/helm-charts/docs/guide/crds/).
+- Chart / image pins aligned with core **0.11.0**.
+
+## [0.10.0] - 2026-10-06
+
+### Added
+
+- CRD validation allows `ghcr.io/virtfoundry/` containerDisk images (VKS node image).
+
+### Security
+
+- CodeQL, Scorecard, Dependabot (grouped monthly) and dependency review.
+
+### Changed
+
+- Chart / image pins aligned with core **0.10.0**.
+
 ## [0.9.0] - 2026-10-01
 
 ### Added
