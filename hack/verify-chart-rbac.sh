@@ -4,10 +4,24 @@
 # or if admission guards (namespace / kubevirt / CR) stop rendering on capable
 # clusters.
 #
-# Keep in sync with virtfoundry/helm-charts scripts/ci/verify-operator-chart-rbac.sh.
+# The chart is not in this repository: it lives in virtfoundry/helm-charts
+# (charts/virtfoundry-operator). CHART_DIR points at it. Unset, a sibling checkout
+# (../helm-charts) is used when present, otherwise helm-charts main is cloned.
+# helm-charts CI runs this same script against its chart.
 set -euo pipefail
 
-CHART_DIR="${CHART_DIR:-charts/virtfoundry-operator}"
+if [[ -z "${CHART_DIR:-}" ]]; then
+  here="$(cd "$(dirname "$0")/.." && pwd)"
+  if [[ -d "$here/../helm-charts/charts/virtfoundry-operator" ]]; then
+    CHART_DIR="$here/../helm-charts/charts/virtfoundry-operator"
+  else
+    chart_tmp="$(mktemp -d)"
+    git clone --quiet --depth 1 --branch "${HELM_CHARTS_REF:-main}" \
+      "${HELM_CHARTS_REPO:-https://github.com/virtfoundry/helm-charts.git}" "$chart_tmp"
+    CHART_DIR="$chart_tmp/charts/virtfoundry-operator"
+  fi
+fi
+echo "chart: $CHART_DIR"
 VAP_API="admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy"
 
 # API groups / resource names that belong to future controllers, not the
@@ -219,7 +233,7 @@ echo "OK: custom imageAllowlist.prefixes replaces built-in Template allowlist in
 # Formatting / rule grouping may differ; apiGroup+resource+verb sets must match (operator#27).
 ROLE_FILE="${ROLE_FILE:-config/rbac/role.yaml}"
 HELM_RBAC_RENDER="$(mktemp)"
-trap 'rm -f "$HELM_RBAC_RENDER"' EXIT
+trap 'rm -rf "$HELM_RBAC_RENDER" "${chart_tmp:-}"' EXIT
 helm template virtfoundry-operator "$CHART_DIR" -s templates/rbac.yaml >"$HELM_RBAC_RENDER"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ( cd "$ROOT" && go run ./hack/comparechart "$ROLE_FILE" "$HELM_RBAC_RENDER" )

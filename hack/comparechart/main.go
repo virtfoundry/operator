@@ -67,7 +67,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "    - %s\n", t)
 		}
 	}
-	fmt.Fprintln(os.Stderr, "Update charts/.../templates/rbac.yaml (and helm-charts copy)")
+	fmt.Fprintln(os.Stderr, "Update charts/virtfoundry-operator/templates/rbac.yaml in virtfoundry/helm-charts")
 	fmt.Fprintln(os.Stderr, "after `make manifests`, or adjust +kubebuilder:rbac markers.")
 	os.Exit(1)
 }

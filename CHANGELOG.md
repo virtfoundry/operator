@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+### Changed
+
+- The Helm chart is no longer kept in this repository. The only copy is `charts/virtfoundry-operator` in [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts). `make verify-chart-rbac` checks that chart (sibling checkout or a clone of helm-charts main) against the ClusterRole generated from the kubebuilder markers. To add a permission, add the rule to the chart first, then the marker here.
+
 ## [0.11.3] - 2026-10-07
 
 ### Changed
