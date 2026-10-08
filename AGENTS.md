@@ -19,6 +19,7 @@ Rules: `typescript-exhaustive-switch`, `no-inline-imports` (UI/TS); em Go seguir
 ## VirtFoundry
 
 - SemVer produto **0.8.x** (alinhar chart/operator no release).
+- O chart Helm **não** fica neste repo: a única cópia é `charts/virtfoundry-operator` em `virtfoundry/helm-charts`. Permissão nova: primeiro a regra no chart (PR lá), depois o marker `+kubebuilder:rbac` aqui. `make verify-chart-rbac` valida contra o chart de lá.
 - Testes no **homelab Linux** (cluster real ou Kind/Linux com KubeVirt). Gate de produto = homelab; **não** Kind no macOS (KubeVirt não funciona).
 - Preview sem commit só com pedido explícito.
 - Não taguear / mergear release sem OK do maintainer.

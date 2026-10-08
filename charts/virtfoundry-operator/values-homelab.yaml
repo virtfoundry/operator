@@ -1,7 +1,0 @@
-namespace: virtfoundry-system
-image:
-  repository: ghcr.io/virtfoundry/operator
-  tag: "0.11.3"
-  pullPolicy: IfNotPresent
-replicas: 1
-leaderElection: true
