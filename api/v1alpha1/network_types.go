@@ -40,6 +40,11 @@ type NetworkSpec struct {
 	// +optional
 	VPCRef *LocalObjectRef `json:"vpcRef,omitempty"`
 
+	// Tags are free-form user labels persisted on the Network and returned
+	// unchanged by the REST API and UI.
+	// +optional
+	Tags []string `json:"tags,omitempty"`
+
 	// Import optional CloudStack/other import identity.
 	// +optional
 	Import *ImportMeta `json:"import,omitempty"`

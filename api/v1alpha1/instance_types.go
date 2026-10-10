@@ -75,6 +75,11 @@ type InstanceSpec struct {
 	// +optional
 	PowerState string `json:"powerState,omitempty"`
 
+	// Tags are free-form user labels persisted on the Instance and returned
+	// unchanged by the REST API and UI.
+	// +optional
+	Tags []string `json:"tags,omitempty"`
+
 	// Import optional CloudStack/other import identity.
 	// +optional
 	Import *ImportMeta `json:"import,omitempty"`
