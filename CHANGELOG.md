@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+### Added
+
+- `spec.tags` on `Instance`, `VPC`, `Network` and `SecurityGroup`. A free-form list of user labels persisted on the CR so the REST API and UI can round-trip resource tags. Previously the field did not exist in the schema, so control-plane writes of `spec.tags` were rejected by strict field validation (core#256).
+
 ### Changed
 
 - The Helm chart is no longer kept in this repository. The only copy is `charts/virtfoundry-operator` in [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts). `make verify-chart-rbac` checks that chart (sibling checkout or a clone of helm-charts main) against the ClusterRole generated from the kubebuilder markers. To add a permission, add the rule to the chart first, then the marker here.
