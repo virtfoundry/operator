@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-16
+
 ### Added
 
 - `spec.tags` on `Instance`, `VPC`, `Network` and `SecurityGroup`. A free-form list of user labels persisted on the CR so the REST API and UI can round-trip resource tags. Previously the field did not exist in the schema, so control-plane writes of `spec.tags` were rejected by strict field validation (core#256).
