@@ -28,6 +28,11 @@ type VPCSpec struct {
 	// CIDR IPv4 network range for the VPC.
 	CIDR string `json:"cidr"`
 
+	// Tags are free-form user labels persisted on the VPC and returned
+	// unchanged by the REST API and UI.
+	// +optional
+	Tags []string `json:"tags,omitempty"`
+
 	// Import optional CloudStack/other import identity.
 	// +optional
 	Import *ImportMeta `json:"import,omitempty"`
