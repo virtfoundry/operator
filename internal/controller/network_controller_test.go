@@ -77,6 +77,70 @@ func TestBuildIsolatedNADConfig_DefaultBridge(t *testing.T) {
 	}
 }
 
+func TestBridgeForNamespace_PerTenantAndValid(t *testing.T) {
+	a, b := bridgeForNamespace("virtfoundry-tenant-default"), bridgeForNamespace("virtfoundry-tenant-smoke")
+	if a == b {
+		t.Fatalf("different tenants share bridge %q", a)
+	}
+	if a == defaultIsolatedBridge || len(a) > 15 || !strings.HasPrefix(a, "vfb") {
+		t.Fatalf("invalid bridge name %q", a)
+	}
+	if a != bridgeForNamespace("virtfoundry-tenant-default") {
+		t.Fatal("bridge name not deterministic")
+	}
+}
+
+func TestBuildIsolatedNADConfig_KeepsEgress(t *testing.T) {
+	cfg, err := buildIsolatedNADConfig("n", "vfbabc", "10.1.0.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(cfg), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["isGateway"] != true || m["ipMasq"] != true {
+		t.Fatalf("isGateway/ipMasq missing: %s", cfg)
+	}
+}
+
+func TestNetworkReconcile_UsesTenantBridgeAndUniqueCNIName(t *testing.T) {
+	scheme := networkTestScheme(t)
+	mk := func(ns string) *virtfoundryv1alpha1.Network {
+		return &virtfoundryv1alpha1.Network{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-default", Namespace: ns, ResourceVersion: "1"},
+			Spec:       virtfoundryv1alpha1.NetworkSpec{Name: "default-default", NetworkType: networkTypeIsolated, CIDR: "10.0.0.0/24"},
+		}
+	}
+	cfgs := map[string]map[string]any{}
+	for _, ns := range []string{"virtfoundry-tenant-default", "virtfoundry-tenant-smoke"} {
+		net := mk(ns)
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&virtfoundryv1alpha1.Network{}).WithObjects(net).Build()
+		r := &NetworkReconciler{Client: c, Scheme: scheme}
+		if _, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: net.Name, Namespace: ns}}); err != nil {
+			t.Fatal(err)
+		}
+		nad := &unstructured.Unstructured{}
+		nad.SetGroupVersionKind(nadGVK)
+		if err := c.Get(context.Background(), types.NamespacedName{Name: net.Name, Namespace: ns}, nad); err != nil {
+			t.Fatal(err)
+		}
+		raw, _, _ := unstructured.NestedString(nad.Object, "spec", "config")
+		var m map[string]any
+		if err := json.Unmarshal([]byte(raw), &m); err != nil {
+			t.Fatal(err)
+		}
+		cfgs[ns] = m
+	}
+	a, b := cfgs["virtfoundry-tenant-default"], cfgs["virtfoundry-tenant-smoke"]
+	if a["bridge"] == b["bridge"] || a["bridge"] == defaultIsolatedBridge {
+		t.Fatalf("bridges not isolated: %v vs %v", a["bridge"], b["bridge"])
+	}
+	if a["name"] == b["name"] {
+		t.Fatalf("CNI name (IPAM scope) shared: %v", a["name"])
+	}
+}
+
 func networkTestScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	scheme := runtime.NewScheme()

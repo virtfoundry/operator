@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -33,6 +35,13 @@ const (
 	nadAPIVersion = "k8s.cni.cncf.io/v1"
 	nadKind       = "NetworkAttachmentDefinition"
 )
+
+// bridgeForNamespace returns a per-tenant Linux bridge name ("vfb"+8 hex, <=15 chars).
+// One L2 domain per tenant namespace: isolated Networks of different tenants never share a bridge.
+func bridgeForNamespace(ns string) string {
+	h := sha256.Sum256([]byte(ns))
+	return "vfb" + hex.EncodeToString(h[:4])
+}
 
 // buildIsolatedNADConfig mirrors core/internal/platform/k8s/network.go createBridgeNAD
 // (bridge CNI + host-local IPAM). Shared/public NADs are out of scope for v1.
@@ -56,6 +65,8 @@ func buildIsolatedNADConfig(name, bridge, cidr string) (string, error) {
   "name": %q,
   "type": "bridge",
   "bridge": %q,
+  "isGateway": true,
+  "ipMasq": true,
   "ipam": %s
 }`, name, bridge, ipam), nil
 }
