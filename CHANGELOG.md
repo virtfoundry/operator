@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-13
+
+### Fixed
+
+- Isolated `Network` NADs use one bridge per tenant (`vfb` + 8 hex of the namespace hash), a CNI network name of `<namespace>-<name>` (one IPAM scope per tenant), and `isGateway` + `ipMasq` so VMs keep egress. Before, all tenants shared `virtfoundry-br0` and could reach each other ([#79](https://github.com/virtfoundry/operator/pull/79)).
+
+### Changed
+
+- Version aligned with the VirtFoundry 0.13.0 release.
+
 ## [0.12.0] - 2026-10-16
 
 ### Added
