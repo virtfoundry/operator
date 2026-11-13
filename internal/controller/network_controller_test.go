@@ -90,20 +90,6 @@ func TestBridgeForNamespace_PerTenantAndValid(t *testing.T) {
 	}
 }
 
-func TestBuildIsolatedNADConfig_KeepsEgress(t *testing.T) {
-	cfg, err := buildIsolatedNADConfig("n", "vfbabc", "10.1.0.0/24")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var m map[string]any
-	if err := json.Unmarshal([]byte(cfg), &m); err != nil {
-		t.Fatal(err)
-	}
-	if m["isGateway"] != true || m["ipMasq"] != true {
-		t.Fatalf("isGateway/ipMasq missing: %s", cfg)
-	}
-}
-
 func TestNetworkReconcile_UsesTenantBridgeAndUniqueCNIName(t *testing.T) {
 	scheme := networkTestScheme(t)
 	mk := func(ns string) *virtfoundryv1alpha1.Network {

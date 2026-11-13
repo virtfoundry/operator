@@ -65,8 +65,6 @@ func buildIsolatedNADConfig(name, bridge, cidr string) (string, error) {
   "name": %q,
   "type": "bridge",
   "bridge": %q,
-  "isGateway": true,
-  "ipMasq": true,
   "ipam": %s
 }`, name, bridge, ipam), nil
 }
