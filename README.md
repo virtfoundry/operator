@@ -80,6 +80,8 @@ On every successful Tenant reconcile the operator also ensures:
 | ResourceQuota | `virtfoundry-default` | Caps pods, CPU/memory requests+limits, PVCs, Services |
 | LimitRange | `virtfoundry-default` | Sensible container default request/limit/max |
 
+Isolated `Network` NADs use one Linux bridge per tenant (`vfb` + 8 hex of the namespace hash), a CNI network name of `<namespace>-<name>`, and `isGateway` + `ipMasq`, so tenants never share an L2 domain.
+
 Instance reconcile only runs in namespaces labelled `virtfoundry.io/tenant` under
 the `virtfoundry-tenant-*` prefix. Guest VMs do **not** get the KubeVirt pod
 network (masquerade) by default — attach Multus/VPC networks via `spec.nics`, or
