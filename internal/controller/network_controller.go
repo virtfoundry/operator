@@ -64,7 +64,7 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	cfg, err := buildIsolatedNADConfig(net.Name, defaultIsolatedBridge, net.Spec.CIDR)
+	cfg, err := buildIsolatedNADConfig(net.Namespace+"-"+net.Name, bridgeForNamespace(net.Namespace), net.Spec.CIDR)
 	if err != nil {
 		logger.Error(err, "Invalid Network for NAD")
 		return r.markFailed(ctx, net, err)
