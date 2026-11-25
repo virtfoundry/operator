@@ -16,6 +16,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 OPERATOR_IMG="${OPERATOR_IMG:-virtfoundry-operator:e2e}"
 KUBEVIRT_VERSION="${KUBEVIRT_VERSION:-v1.10.0}"
 CDI_VERSION="${CDI_VERSION:-v1.66.1}"
+CNI_PLUGINS_VERSION="${CNI_PLUGINS_VERSION:-v1.6.2}"
+KIND_NODE="${KIND_NODE:-e2e-control-plane}"
 NS=virtfoundry-system
 ROOT_PW="e2e-root-password-0123"
 JWT="$(printf 'e2e-jwt-secret-%.0s' 1 2 3)0123456789"
@@ -59,6 +61,12 @@ H="$HELM_CHARTS_DIR"
 
 # jp EXPECTED kubectl-args...: true when kubectl output equals EXPECTED (re-run on every wait_for try)
 jp() { local exp=$1; shift; [ "$(kubectl "$@")" = "$exp" ]; }
+
+echo "==> CNI plugins $CNI_PLUGINS_VERSION on $KIND_NODE (Kind ships no 'bridge' plugin, needed by the isolated NADs)"
+arch=$(uname -m); case "$arch" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; esac
+curl -fsSL "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-${arch}-${CNI_PLUGINS_VERSION}.tgz" \
+  | docker exec -i "$KIND_NODE" tar -xz -C /opt/cni/bin
+docker exec "$KIND_NODE" test -x /opt/cni/bin/bridge || fail "bridge CNI plugin missing on $KIND_NODE"
 
 echo "==> Platform: Multus, KubeVirt $KUBEVIRT_VERSION, CDI $CDI_VERSION"
 "$H/scripts/setup/multus.sh"
