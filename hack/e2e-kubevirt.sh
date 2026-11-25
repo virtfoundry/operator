@@ -132,8 +132,8 @@ OFF=$(api GET /service-offerings | python3 -c 'import sys,json; print(next((o["i
 KEY_ID=$(api POST /ssh-keys '{"name":"e2e-key"}' | jget 'd["key"]["id"]')
 [ -n "$KEY_ID" ] || fail "ssh key creation returned no id"
 api POST /vms "{\"name\":\"e2e-vm\",\"template_id\":\"$TPL\",\"service_offering_id\":\"$OFF\",\"ssh_key_id\":\"$KEY_ID\",\"network_ids\":[\"$NET_ID\"]}" >/dev/null
-wait_for "Instance e2e-vm Ready" 600 \
-  jp Ready get instances.virtfoundry.io -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}'
+wait_for "Instance e2e-vm Running" 600 \
+  jp Running get instances.virtfoundry.io -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}'
 wait_for "VMI Running" 600 \
   jp Running get vmi -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}'
 
