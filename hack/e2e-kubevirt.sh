@@ -94,9 +94,12 @@ trap 'kill %1 2>/dev/null || true' EXIT
 wait_for "API reachable" 60 curl -fsS "http://127.0.0.1:${API_PORT}/health"
 TOK=$(curl -fsS -X POST "$API/auth/login" -H 'Content-Type: application/json' \
   -d "{\"username\":\"root\",\"password\":\"$ROOT_PW\"}" | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
-api() { # api METHOD PATH [JSON]
-  local m=$1 p=$2; shift 2
-  curl -fsS -X "$m" "$API$p" -H "Authorization: Bearer $TOK" -H 'Content-Type: application/json' "${@:+-d}" "$@"
+api() { # api METHOD PATH [JSON]; prints the body, fails with the body on HTTP >= 400
+  local m=$1 p=$2 out code; shift 2
+  out=$(curl -sS -w '\n%{http_code}' -X "$m" "$API$p" -H "Authorization: Bearer $TOK" -H 'Content-Type: application/json' "${@:+-d}" "$@")
+  code=${out##*$'\n'}; out=${out%$'\n'*}
+  if [ "$code" -ge 400 ]; then echo "API $m $p -> HTTP $code: $out" >&2; return 1; fi
+  printf '%s' "$out"
 }
 jget() { python3 -c "import sys,json; d=json.load(sys.stdin); print($1)"; }
 
