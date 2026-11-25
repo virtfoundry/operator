@@ -23,16 +23,19 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install the latest version of kind
+      # Pinned version, fetched through the Go module proxy so the download is
+      # verified against sum.golang.org (no unpinned "latest" binary).
+      - name: Install kind
+        env:
+          KIND_VERSION: v0.33.0
         run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+          go install sigs.k8s.io/kind@"${KIND_VERSION}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Verify kind installation
         run: kind version
 
       - name: Running Test e2e
         run: |
-          go mod tidy
+          go mod tidy -diff
           make test-e2e

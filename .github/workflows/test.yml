@@ -25,5 +25,5 @@ jobs:
 
       - name: Running Tests
         run: |
-          go mod tidy
+          go mod tidy -diff
           make test
