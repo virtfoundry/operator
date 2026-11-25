@@ -52,6 +52,7 @@ wait_for() {
   ok "$what"
 }
 
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 H="$HELM_CHARTS_DIR"
 
 echo "==> Platform: Multus, KubeVirt $KUBEVIRT_VERSION, CDI $CDI_VERSION"
