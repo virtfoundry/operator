@@ -117,7 +117,9 @@ VOL_ID=$(api POST /volumes '{"name":"e2e-vol","size_gi":1}' | jget 'd["volume"][
 echo "==> VM deploy"
 TPL=$(api GET /vm-templates | python3 -c 'import sys,json; d=json.load(sys.stdin); t=[x for x in (d.get("templates") or d.get("vm_templates") or d) if "cirros" in (x.get("name","")+x.get("image","")).lower()]; print(t[0]["id"] if t else "")')
 [ -n "$TPL" ] || fail "no cirros template seeded"
-api POST /vms "{\"name\":\"e2e-vm\",\"template_id\":\"$TPL\",\"service_offering_id\":\"small\",\"network_ids\":[\"$NET_ID\"]}" >/dev/null
+OFF=$(api GET /service-offerings | python3 -c 'import sys,json; print(next((o["id"] for o in json.load(sys.stdin)["service_offerings"] if o["name"]=="small"), ""))')
+[ -n "$OFF" ] || fail "no small offering seeded"
+api POST /vms "{\"name\":\"e2e-vm\",\"template_id\":\"$TPL\",\"service_offering_id\":\"$OFF\",\"network_ids\":[\"$NET_ID\"]}" >/dev/null
 wait_for "Instance e2e-vm Ready" 600 \
   jp Ready get instances.virtfoundry.io -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}'
 wait_for "VMI Running" 600 \
