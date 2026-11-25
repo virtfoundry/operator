@@ -55,6 +55,9 @@ wait_for() {
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 H="$HELM_CHARTS_DIR"
 
+# jp EXPECTED kubectl-args...: true when kubectl output equals EXPECTED (re-run on every wait_for try)
+jp() { local exp=$1; shift; [ "$(kubectl "$@")" = "$exp" ]; }
+
 echo "==> Platform: Multus, KubeVirt $KUBEVIRT_VERSION, CDI $CDI_VERSION"
 "$H/scripts/setup/multus.sh"
 kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
@@ -82,7 +85,7 @@ metadata: { name: e2e }
 spec: { name: E2E, slug: e2e }
 YAML
 wait_for "Tenant e2e Ready" 180 \
-  test "$(kubectl get tenants.virtfoundry.io e2e -o jsonpath='{.status.phase}')" = Ready
+  jp Ready get tenants.virtfoundry.io e2e -o jsonpath='{.status.phase}'
 wait_for "tenant namespace exists" 60 kubectl get ns virtfoundry-tenant-e2e
 
 echo "==> API login"
@@ -113,9 +116,9 @@ TPL=$(api GET /vm-templates | python3 -c 'import sys,json; d=json.load(sys.stdin
 [ -n "$TPL" ] || fail "no cirros template seeded"
 api POST /vms "{\"name\":\"e2e-vm\",\"template_id\":\"$TPL\",\"service_offering_id\":\"small\",\"network_ids\":[\"$NET_ID\"]}" >/dev/null
 wait_for "Instance e2e-vm Ready" 600 \
-  test "$(kubectl get instances.virtfoundry.io -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}')" = Ready
+  jp Ready get instances.virtfoundry.io -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}'
 wait_for "VMI Running" 600 \
-  test "$(kubectl get vmi -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}')" = Running
+  jp Running get vmi -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].status.phase}'
 
 INS_NS=$(kubectl get instances.virtfoundry.io -A -o jsonpath='{.items[?(@.metadata.name=="e2e-vm")].metadata.namespace}')
 
@@ -124,7 +127,7 @@ kubectl -n "$INS_NS" patch instances.virtfoundry.io e2e-vm --type merge -p '{"sp
 wait_for "VMI gone after Halted" 300 bash -c "! kubectl -n $INS_NS get vmi e2e-vm"
 kubectl -n "$INS_NS" patch instances.virtfoundry.io e2e-vm --type merge -p '{"spec":{"powerState":"Running"}}'
 wait_for "VMI Running again" 600 \
-  test "$(kubectl -n "$INS_NS" get vmi e2e-vm -o jsonpath='{.status.phase}')" = Running
+  jp Running -n "$INS_NS" get vmi e2e-vm -o jsonpath='{.status.phase}'
 
 echo "==> Volume attach"
 api POST /vms/e2e-vm/volumes "{\"volume_id\":\"$VOL_ID\"}" >/dev/null && ok "volume attached"
