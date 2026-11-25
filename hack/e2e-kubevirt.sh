@@ -36,6 +36,8 @@ diagnostics() {
   kubectl get pods -A -o wide
   kubectl get tenants,networks,instances -A
   kubectl get vm,vmi,dv,pvc,net-attach-def -A
+  kubectl get events -A --sort-by=.lastTimestamp | tail -40
+  kubectl -n virtfoundry-tenant-default describe pods -l kubevirt.io=virt-launcher | tail -60
   kubectl -n "$NS" logs deploy/virtfoundry-operator --tail=80
   kubectl -n "$NS" logs deploy/virtfoundry-api --tail=80
   echo "::endgroup::"
