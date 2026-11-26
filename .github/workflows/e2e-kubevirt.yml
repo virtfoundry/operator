@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: virtfoundry/helm-charts
-          ref: 3d207e909176ca3e75fe91a2a29cc039ac9bef25
+          ref: 0a6e66295fe326ffa7dbef1a2daf4a24a568c141
           path: helm-charts
           persist-credentials: false
 
