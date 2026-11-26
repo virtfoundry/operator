@@ -9,6 +9,7 @@ rules:
   resources:
   - limitranges
   - resourcequotas
+  - services
   verbs:
   - create
   - delete
@@ -35,6 +36,18 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - k8s.cni.cncf.io
@@ -109,6 +122,7 @@ rules:
   - virtfoundry.io
   resources:
   - instances/status
+  - loadbalancers/status
   - networks/status
   - tenants/status
   verbs:
@@ -118,9 +132,11 @@ rules:
 - apiGroups:
   - virtfoundry.io
   resources:
+  - loadbalancers
   - networks
   - offerings
   - sshkeys
+  - targetgroups
   - templates
   verbs:
   - get
