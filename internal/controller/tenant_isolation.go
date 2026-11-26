@@ -108,20 +108,20 @@ func (r *TenantReconciler) ensureDefaultDenyNetworkPolicy(
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, np, func() error {
 		np.Labels = isolationObjectLabels(tenant)
-		np.Spec = defaultDenyNetworkPolicySpec()
+		np.Spec = defaultDenyNetworkPolicySpec(r.NodeLocalDNS)
 		return controllerutil.SetControllerReference(tenant, np, r.Scheme)
 	})
 	return err
 }
 
-func defaultDenyNetworkPolicySpec() networkingv1.NetworkPolicySpec {
+func defaultDenyNetworkPolicySpec(nodeLocalDNS bool) networkingv1.NetworkPolicySpec {
 	udp := corev1.ProtocolUDP
 	tcp := corev1.ProtocolTCP
 	dnsPort := intstr.FromInt32(53)
 	httpPort := intstr.FromInt32(80)
 	httpsPort := intstr.FromInt32(443)
 
-	return networkingv1.NetworkPolicySpec{
+	spec := networkingv1.NetworkPolicySpec{
 		PodSelector: metav1.LabelSelector{},
 		PolicyTypes: []networkingv1.PolicyType{
 			networkingv1.PolicyTypeIngress,
@@ -180,6 +180,12 @@ func defaultDenyNetworkPolicySpec() networkingv1.NetworkPolicySpec {
 			},
 		},
 	}
+	if nodeLocalDNS {
+		// NodeLocal DNSCache listens on the node itself, which neither a pod selector
+		// nor (on Cilium) an ipBlock matches: only a rule without peers reaches it.
+		spec.Egress[0].To = nil
+	}
+	return spec
 }
 
 func (r *TenantReconciler) ensureResourceQuota(
