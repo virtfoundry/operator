@@ -77,6 +77,9 @@ func (r *TenantReconciler) ensureTenantIsolation(
 	if err := r.ensureDefaultDenyNetworkPolicy(ctx, tenant, nsName); err != nil {
 		return err
 	}
+	if err := r.ensureCDIImporterEgressPolicy(ctx, tenant, nsName); err != nil {
+		return err
+	}
 	if err := r.ensureResourceQuota(ctx, tenant, nsName); err != nil {
 		return err
 	}
@@ -294,5 +297,47 @@ func isolationObjectLabels(tenant *virtfoundryv1alpha1.Tenant) map[string]string
 		labelPartOf:    partOfVirtFoundry,
 		labelManagedBy: managedByOperator,
 		labelTenant:    tenant.Spec.Slug,
+	}
+}
+
+// cdiImporterEgressPolicyName matches the policy the API created before the
+// operator owned it, so CreateOrUpdate adopts it instead of leaving a duplicate.
+const cdiImporterEgressPolicyName = "virtfoundry-cdi-importer-egress"
+
+// ensureCDIImporterEgressPolicy lets CDI importer pods reach public endpoints on
+// any port (private ranges stay blocked). The default-deny policy only opens
+// TCP 80/443, so a source on another port would otherwise fail.
+func (r *TenantReconciler) ensureCDIImporterEgressPolicy(
+	ctx context.Context,
+	tenant *virtfoundryv1alpha1.Tenant,
+	nsName string,
+) error {
+	np := &networkingv1.NetworkPolicy{}
+	np.Name = cdiImporterEgressPolicyName
+	np.Namespace = nsName
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, np, func() error {
+		np.Labels = isolationObjectLabels(tenant)
+		np.Spec = cdiImporterEgressPolicySpec()
+		return controllerutil.SetControllerReference(tenant, np, r.Scheme)
+	})
+	return err
+}
+
+func cdiImporterEgressPolicySpec() networkingv1.NetworkPolicySpec {
+	return networkingv1.NetworkPolicySpec{
+		PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{"cdi.kubevirt.io": "importer"}},
+		PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeEgress},
+		Egress: []networkingv1.NetworkPolicyEgressRule{{
+			To: []networkingv1.NetworkPolicyPeer{{IPBlock: &networkingv1.IPBlock{
+				CIDR:   "0.0.0.0/0",
+				Except: []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10"},
+			}}},
+		}, {
+			To: []networkingv1.NetworkPolicyPeer{{IPBlock: &networkingv1.IPBlock{
+				CIDR:   "::/0",
+				Except: []string{"fc00::/7", "fe80::/10", "::1/128"},
+			}}},
+		}},
 	}
 }
