@@ -10,6 +10,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 - `--node-local-dns` lets tenant pods resolve names on clusters with NodeLocal DNSCache. Before, CDI image imports failed there with a DNS timeout.
 
+### Added
+
+- `LoadBalancer` and `TargetGroup` CRDs. The operator owns a `type=LoadBalancer` Service and one EndpointSlice per listener.
+- Tenant namespaces get the CDI importer egress NetworkPolicy, previously created by the API.
+
 ## [0.13.0] - 2026-11-13
 
 ### Fixed
