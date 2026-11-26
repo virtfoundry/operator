@@ -137,7 +137,7 @@ KubeVirt does not run on macOS. For development on Apple Silicon, `--instance-ba
 - Development only: run the operator out of cluster (`go run ./cmd --instance-backend=kubesilicon`). The chart grants no RBAC for it.
 - **No tenant network isolation.** Guests are NATed on the Mac and `spec.nics` is ignored.
 - Needs the KubeSilicon CRDs and a `kubesilicond` pointed at the same cluster.
-- The `Template` needs the annotation `virtfoundry.io/kubesilicon-disk` with an arm64 cloud image (http(s) URL or a file under the daemon's `images/` directory). `spec.image` is ignored.
+- The `Template` needs the annotation `virtfoundry.io/kubesilicon-disk` with an arm64 cloud image (http(s) URL, or the absolute path of a file under the daemon's `images/` directory). `spec.image` is ignored.
 - After creation only the power state is synced.
 
 ## License

@@ -41,7 +41,7 @@ const (
 	InstanceBackendKubeSilicon = "kubesilicon"
 
 	// annotationKubeSiliconDisk on a Template is the arm64 cloud image (http(s) URL or
-	// a file under ~/.kubesilicon/images). Template.spec.image is an amd64 containerDisk.
+	// the absolute path of a file under ~/.kubesilicon/images). Template.spec.image is an amd64 containerDisk.
 	annotationKubeSiliconDisk = "virtfoundry.io/kubesilicon-disk"
 )
 
