@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+### Added
+
+- Experimental `--instance-backend=kubesilicon` for development on Apple Silicon: `Instance` objects become KubeSilicon `SiliconVM` objects. No tenant network isolation.
+
 ## [0.13.0] - 2026-11-13
 
 ### Fixed

@@ -39,6 +39,8 @@ const instanceRequeue = 30 * time.Second
 
 // InstanceReconciler ensures KubeVirt VMs from Instance spec and syncs status.
 type InstanceReconciler struct {
+	// Backend is InstanceBackendKubeVirt (default, also when empty) or InstanceBackendKubeSilicon.
+	Backend string
 	client.Client
 	Scheme *runtime.Scheme
 	// AllowedContainerImagePrefixes optionally replaces the built-in
@@ -74,7 +76,11 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if !inst.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(inst, instanceFinalizer) {
-			if err := r.deleteVirtualMachine(ctx, inst.Namespace, kvName); err != nil {
+			deleteVM := r.deleteVirtualMachine
+			if r.Backend == InstanceBackendKubeSilicon {
+				deleteVM = r.deleteSiliconVM
+			}
+			if err := deleteVM(ctx, inst.Namespace, kvName); err != nil {
 				return ctrl.Result{}, err
 			}
 			controllerutil.RemoveFinalizer(inst, instanceFinalizer)
@@ -113,6 +119,10 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		logger.Error(err, "Refused Instance outside tenant namespace")
 		return ctrl.Result{}, nil
+	}
+
+	if r.Backend == InstanceBackendKubeSilicon {
+		return r.reconcileSiliconVM(ctx, inst, kvName)
 	}
 
 	if err := r.ensureVirtualMachine(ctx, inst, kvName); err != nil {
@@ -166,6 +176,13 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if r.Backend == InstanceBackendKubeSilicon {
+		return ctrl.NewControllerManagedBy(mgr).
+			For(&virtfoundryv1alpha1.Instance{}).
+			Owns(newSiliconVM("", "")).
+			Named("instance").
+			Complete(r)
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&virtfoundryv1alpha1.Instance{}).
 		Owns(&kubevirtv1.VirtualMachine{}).

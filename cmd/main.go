@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -64,6 +65,9 @@ func main() {
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
+	var instanceBackend string
+	flag.StringVar(&instanceBackend, "instance-backend", controller.InstanceBackendKubeVirt,
+		"VM backend: kubevirt, or kubesilicon (experimental, development on Apple Silicon only, no network isolation).")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -83,6 +87,10 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+	if instanceBackend != controller.InstanceBackendKubeVirt && instanceBackend != controller.InstanceBackendKubeSilicon {
+		fmt.Fprintf(os.Stderr, "unknown --instance-backend %q\n", instanceBackend)
+		os.Exit(1)
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -176,8 +184,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.InstanceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Backend: instanceBackend,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "instance")
 		os.Exit(1)
