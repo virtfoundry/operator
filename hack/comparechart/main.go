@@ -4,6 +4,10 @@ package main
 // kubebuilder config/rbac/role.yaml and a rendered Helm ClusterRole.
 // Ignores metadata/name and rule grouping / YAML formatting.
 // Helm multi-doc: skips *-kubevirt-mutate (tenant RoleBinding slice, #28/#49).
+//
+// A permission is added chart first and removed marker first, so the chart may
+// temporarily grant more than role.yaml. Each such triple must be listed in the
+// optional pending file (one apiGroup/resource/verb per line, # comments).
 
 import (
 	"bytes"
@@ -34,8 +38,8 @@ type clusterRole struct {
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintf(os.Stderr, "usage: %s <kubebuilder-role.yaml> <helm-rendered.yaml>\n", os.Args[0])
+	if len(os.Args) != 3 && len(os.Args) != 4 {
+		fmt.Fprintf(os.Stderr, "usage: %s <kubebuilder-role.yaml> <helm-rendered.yaml> [pending.txt]\n", os.Args[0])
 		os.Exit(2)
 	}
 	want, err := loadTriples(os.Args[1], true)
@@ -50,6 +54,20 @@ func main() {
 	}
 	onlyWant := diff(want, got)
 	onlyGot := diff(got, want)
+	if len(os.Args) == 4 {
+		pending, err := loadPending(os.Args[3])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "pending file: %v\n", err)
+			os.Exit(1)
+		}
+		onlyGot = slices.DeleteFunc(onlyGot, func(t string) bool {
+			if _, ok := pending[t]; !ok {
+				return false
+			}
+			fmt.Printf("WARN: chart grants pending rule not in role.yaml: %s\n", t)
+			return true
+		})
+	}
 	if len(onlyWant) == 0 && len(onlyGot) == 0 {
 		fmt.Println("OK: Helm ClusterRole rules match config/rbac/role.yaml (apiGroup/resource/verb set)")
 		return
@@ -120,6 +138,25 @@ func loadTriples(path string, singleDoc bool) (map[string]struct{}, error) {
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("%s: no ClusterRole rules found", path)
+	}
+	return out, nil
+}
+
+// loadPending reads the allowed extra triples. A missing file allows none.
+func loadPending(path string) (map[string]struct{}, error) {
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]struct{}{}
+	for line := range strings.Lines(string(raw)) {
+		line, _, _ = strings.Cut(line, "#")
+		if line = strings.TrimSpace(line); line != "" {
+			out[line] = struct{}{}
+		}
 	}
 	return out, nil
 }

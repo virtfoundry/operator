@@ -8,6 +8,11 @@
 # (charts/virtfoundry-operator). CHART_DIR points at it. Unset, a sibling checkout
 # (../helm-charts) is used when present, otherwise helm-charts main is cloned.
 # helm-charts CI runs this same script against its chart.
+#
+# Adding a permission: chart PR adds the rule and lists its triples in
+# <chart>/rbac-pending.txt, then the marker lands here, then the entry is dropped.
+# Removing: chart PR lists the triples, the marker is removed here, then the chart
+# drops the rule and the entry.
 set -euo pipefail
 
 if [[ -z "${CHART_DIR:-}" ]]; then
@@ -236,4 +241,6 @@ HELM_RBAC_RENDER="$(mktemp)"
 trap 'rm -rf "$HELM_RBAC_RENDER" "${chart_tmp:-}"' EXIT
 helm template virtfoundry-operator "$CHART_DIR" -s templates/rbac.yaml >"$HELM_RBAC_RENDER"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-( cd "$ROOT" && go run ./hack/comparechart "$ROLE_FILE" "$HELM_RBAC_RENDER" )
+# Extra chart rules pass only when listed here (see hack/comparechart).
+PENDING="$(cd "$CHART_DIR" && pwd)/rbac-pending.txt"
+( cd "$ROOT" && go run ./hack/comparechart "$ROLE_FILE" "$HELM_RBAC_RENDER" "$PENDING" )
