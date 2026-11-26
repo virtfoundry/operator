@@ -130,6 +130,10 @@ kubectl apply -f config/samples/virtfoundry_v1alpha1_tenant.yaml
 kubectl get vf-tenant
 ```
 
+## NodeLocal DNSCache
+
+Tenant namespaces only allow DNS to the `kube-dns` pods. If pods on your cluster resolve through NodeLocal DNSCache (the Kubespray default), set `--node-local-dns`. It opens port 53 from tenant pods to any destination.
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

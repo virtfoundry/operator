@@ -64,6 +64,9 @@ func main() {
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
+	var nodeLocalDNS bool
+	flag.BoolVar(&nodeLocalDNS, "node-local-dns", false,
+		"Allow tenant pods to reach port 53 on any destination. Needed with NodeLocal DNSCache.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -171,6 +174,7 @@ func main() {
 		OperatorServiceAccount:    envOr("VIRTFOUNDRY_OPERATOR_SERVICE_ACCOUNT", "virtfoundry-operator"),
 		OperatorNamespace:         envOr("VIRTFOUNDRY_OPERATOR_NAMESPACE", "virtfoundry-system"),
 		KubeVirtMutateClusterRole: envOr("VIRTFOUNDRY_KUBEVIRT_MUTATE_CLUSTERROLE", "virtfoundry-operator-kubevirt-mutate"),
+		NodeLocalDNS:              nodeLocalDNS,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "tenant")
 		os.Exit(1)

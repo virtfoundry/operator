@@ -46,6 +46,9 @@ const (
 
 // TenantReconciler reconciles a Tenant object.
 type TenantReconciler struct {
+	// NodeLocalDNS opens port 53 to any destination in tenant namespaces, for
+	// clusters whose pods resolve through NodeLocal DNSCache.
+	NodeLocalDNS bool
 	client.Client
 	Scheme *runtime.Scheme
 

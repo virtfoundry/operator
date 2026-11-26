@@ -23,7 +23,7 @@ import (
 )
 
 func TestDefaultDenyNetworkPolicySpec_HasDNSAndPolicyTypes(t *testing.T) {
-	spec := defaultDenyNetworkPolicySpec()
+	spec := defaultDenyNetworkPolicySpec(false)
 	if len(spec.PolicyTypes) != 2 {
 		t.Fatalf("expected ingress+egress policy types, got %#v", spec.PolicyTypes)
 	}

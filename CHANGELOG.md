@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning alig
 
 ## [Unreleased]
 
+### Fixed
+
+- `--node-local-dns` lets tenant pods resolve names on clusters with NodeLocal DNSCache. Before, CDI image imports failed there with a DNS timeout.
+
 ## [0.13.0] - 2026-11-13
 
 ### Fixed
