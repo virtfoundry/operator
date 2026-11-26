@@ -38,8 +38,8 @@ func TestHomelab_ImageAllowlistAgainstLiveTemplates(t *testing.T) {
 	// Positive: catalog ubuntu
 	instOK := &virtfoundryv1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "allowlist-smoke-ok",
-			Namespace: "virtfoundry-tenant-default",
+			Name:        "allowlist-smoke-ok",
+			Namespace:   "virtfoundry-tenant-default",
 			Annotations: map[string]string{annotationAllowPodNetwork: annotationTruthy},
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{
@@ -74,8 +74,8 @@ func TestHomelab_ImageAllowlistAgainstLiveTemplates(t *testing.T) {
 
 	instBad := &virtfoundryv1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "allowlist-smoke-bad",
-			Namespace: "virtfoundry-tenant-default",
+			Name:        "allowlist-smoke-bad",
+			Namespace:   "virtfoundry-tenant-default",
 			Annotations: map[string]string{annotationAllowPodNetwork: annotationTruthy},
 		},
 		Spec: virtfoundryv1alpha1.InstanceSpec{

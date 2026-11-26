@@ -61,3 +61,25 @@ func TestTenantPSALabels_Privileged(t *testing.T) {
 		t.Fatalf("audit/warn: %#v", labels)
 	}
 }
+
+func TestCDIImporterEgressPolicySpec_PublicOnly(t *testing.T) {
+	spec := cdiImporterEgressPolicySpec()
+	if spec.PodSelector.MatchLabels["cdi.kubevirt.io"] != "importer" {
+		t.Fatalf("must select CDI importer pods only, got %#v", spec.PodSelector)
+	}
+	if len(spec.PolicyTypes) != 1 || spec.PolicyTypes[0] != networkingv1.PolicyTypeEgress {
+		t.Fatalf("egress only, got %#v", spec.PolicyTypes)
+	}
+	if len(spec.Egress) != 2 {
+		t.Fatalf("expected IPv4 and IPv6 rules, got %d", len(spec.Egress))
+	}
+	for _, rule := range spec.Egress {
+		blk := rule.To[0].IPBlock
+		if blk == nil || len(blk.Except) == 0 {
+			t.Fatalf("each rule must exclude private ranges, got %#v", rule)
+		}
+		if len(rule.Ports) != 0 {
+			t.Fatalf("any port is the point of this policy, got %#v", rule.Ports)
+		}
+	}
+}

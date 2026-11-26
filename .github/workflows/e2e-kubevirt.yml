@@ -1,0 +1,58 @@
+name: E2E KubeVirt
+
+# Real E2E: Kind + KubeVirt (software emulation) + Multus + CDI, charts from helm-charts,
+# operator image built from this checkout, released core image. See hack/e2e-kubevirt.sh.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "hack/e2e-kubevirt.sh"
+      - ".github/workflows/e2e-kubevirt.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: e2e-kubevirt-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Kind + KubeVirt
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Clone the operator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Clone helm-charts (pinned)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: virtfoundry/helm-charts
+          ref: 3d207e909176ca3e75fe91a2a29cc039ac9bef25
+          path: helm-charts
+          persist-credentials: false
+
+      - name: Install Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          cluster_name: e2e
+
+      - name: Build and load the operator image
+        run: |
+          docker build -t virtfoundry-operator:e2e .
+          kind load docker-image virtfoundry-operator:e2e --name e2e
+
+      - name: Run E2E
+        env:
+          HELM_CHARTS_DIR: ${{ github.workspace }}/helm-charts
+        run: ./hack/e2e-kubevirt.sh
